@@ -1,0 +1,126 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Stores user progression and profile data.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "xp": { "type": "integer" },
+        "level": { "type": "integer" },
+        "completedDays": { "type": "array", "items": { "type": "integer" } },
+        "presenceDays": { "type": "array", "items": { "type": "string" } },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "lastLoginAt": { "type": "string", "format": "date-time" },
+        "streak": { "type": "integer" },
+        "isStrategist": { "type": "boolean", "description": "Premium status for the strategist feature." },
+        "bio": { "type": "string" }
+      },
+      "required": ["email", "xp", "level"]
+    },
+    "CommunityPost": {
+      "title": "Community Post",
+      "description": "User shared insights and discussions.",
+      "type": "object",
+      "properties": {
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhotoURL": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "likes": { "type": "integer" },
+        "isPremium": { "type": "boolean" }
+      },
+      "required": ["authorId", "content", "createdAt"]
+    },
+    "JourneyModule": {
+      "title": "Journey Module",
+      "description": "A day's content in the 100-day journey.",
+      "type": "object",
+      "properties": {
+        "day": { "type": "integer" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "order": { "type": "integer" },
+        "isPremium": { "type": "boolean" }
+      },
+      "required": ["day", "title", "description"]
+    },
+    "VideoArchive": {
+      "title": "Video Archive",
+      "description": "A video breakdown of concepts.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "duration": { "type": "string" },
+        "views": { "type": "string" },
+        "thumbnail": { "type": "string" },
+        "videoUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "isPremium": { "type": "boolean" }
+      },
+      "required": ["title", "thumbnail"]
+    },
+    "LibraryBook": {
+      "title": "Library Book",
+      "description": "Library book entries with manuscript links and cover images.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "author": { "type": "string" },
+        "category": { "type": "string" },
+        "excerpt": { "type": "string" },
+        "fileUrl": { "type": "string" },
+        "coverUrl": { "type": "string" },
+        "isPremium": { "type": "boolean" }
+      },
+      "required": ["title", "author", "coverUrl"]
+    },
+    "ShopProduct": {
+      "title": "Shop Product",
+      "description": "External products listed in the strategic shop.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "affiliateUrl": { "type": "string" },
+        "category": { "type": "string" }
+      },
+      "required": ["name", "description", "price", "imageUrl", "affiliateUrl"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Individual user profiles and progression."
+    },
+    "/posts/{postId}": {
+      "schema": "CommunityPost",
+      "description": "Public community feed posts."
+    },
+    "/journey/{moduleId}": {
+      "schema": "JourneyModule",
+      "description": "Content for the 100-day journey."
+    },
+    "/archives/{videoId}": {
+      "schema": "VideoArchive",
+      "description": "Video archive entries."
+    },
+    "/library/{bookId}": {
+      "schema": "LibraryBook",
+      "description": "Library book entries."
+    },
+    "/shop/{productId}": {
+      "schema": "ShopProduct",
+      "description": "Strategic shop products."
+    },
+    "/admins/{adminId}": {
+      "schema": { "type": "object", "properties": { "email": { "type": "string" } } },
+      "description": "Admin identification."
+    }
+  }
+}

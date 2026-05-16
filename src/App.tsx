@@ -1,0 +1,1869 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Shield, Flame, PlayCircle, BookOpen, Users, 
+  Trophy, Lock, CheckCircle2, ChevronRight, 
+  LogOut, Send, Heart, Menu, X, User,
+  TrendingUp, Zap, Target, Settings, Edit2, Save,
+  ShoppingCart, ArrowLeft, BarChart3, ExternalLink,
+  DollarSign, Share2, Copy, Upload, Image as ImageIcon
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import Logo from './components/Logo';
+import { 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  onAuthStateChanged, 
+  signOut,
+  User as FirebaseUser 
+} from 'firebase/auth';
+import { 
+  doc, 
+  getDoc, 
+  setDoc, 
+  updateDoc, 
+  collection, 
+  query, 
+  orderBy, 
+  onSnapshot, 
+  addDoc, 
+  serverTimestamp,
+  increment,
+  arrayUnion,
+  limit,
+  getCountFromServer,
+  where,
+  getDocs
+} from 'firebase/firestore';
+import { auth, db, handleFirestoreError, OperationType } from './firebase';
+import { UserProfile, CommunityPost, TabType, JourneyModule, VideoArchive, LibraryBook, ShopProduct } from './types';
+import { RANKS, getRankFromXP, getNextRank } from './constants';
+import AdminPanel from './components/AdminPanel';
+
+// --- Components ---
+
+const ProgressBar = ({ progress, label }: { progress: number, label?: string }) => (
+  <div className="w-full">
+    {label && <div className="flex justify-between text-xs font-medium text-gray-400 mb-2">
+      <span>{label}</span>
+      <span>{Math.round(progress)}%</span>
+    </div>}
+    <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+      <motion.div 
+        initial={{ width: 0 }}
+        animate={{ width: `${progress}%` }}
+        className="h-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.2)]"
+      />
+    </div>
+  </div>
+);
+
+const Card = ({ children, className = "", ...props }: { children: React.ReactNode, className?: string } & React.HTMLAttributes<HTMLDivElement>) => (
+  <div {...props} className={`bg-[#0a0a0a]/60 backdrop-blur-md border border-white/5 rounded-[32px] md:rounded-[40px] p-6 md:p-10 hover:border-white/20 transition-all duration-500 group ${className}`}>
+    {children}
+  </div>
+);
+
+const getLocalDateString = (date: Date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const PresenceCalendar = ({ presenceDays, completedDaysCount }: { presenceDays: string[], completedDaysCount: number }) => {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  
+  const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
+  const firstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
+
+  const prevMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+  };
+
+  const nextMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+  };
+
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const numDays = daysInMonth(year, month);
+  const startDay = firstDayOfMonth(year, month);
+
+  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const hindiMonths = ['जनवरी', 'फरवरी', 'मार्च', 'अप्रैल', 'मई', 'जून', 'जुलाई', 'अगस्त', 'सितंबर', 'अक्टूबर', 'नवंबर', 'दिसंबर'];
+
+  const days = [];
+  // Fill empty slots for previous month days
+  for (let i = 0; i < startDay; i++) {
+    days.push(null);
+  }
+  // Fill actual days
+  for (let i = 1; i <= numDays; i++) {
+    days.push(i);
+  }
+
+  const todayStr = getLocalDateString();
+
+  return (
+    <div className="bg-white/5 border border-white/5 rounded-[32px] p-6 md:p-8 w-full shadow-2xl">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <Target className="w-4 h-4 text-amber-500" />
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Journey Tracker / प्रोग्रेस ट्रैकर</span>
+          </div>
+          <h2 className="text-2xl font-display font-black text-white uppercase italic tracking-tight">
+            {months[month]} <span className="text-amber-500">{year}</span>
+          </h2>
+          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">{hindiMonths[month]} {year}</p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button onClick={prevMonth} className="p-3 bg-white/5 border border-white/10 rounded-xl text-white hover:bg-white/10 transition-colors flex items-center justify-center">
+            <ArrowLeft size={16} />
+          </button>
+          <button onClick={() => setCurrentDate(new Date())} className="px-5 py-3 bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-white uppercase tracking-widest hover:bg-white/10 transition-colors">
+            Today
+          </button>
+          <button onClick={nextMonth} className="p-3 bg-white/5 border border-white/10 rounded-xl text-white hover:bg-white/10 transition-colors rotate-180 flex items-center justify-center">
+             <ArrowLeft size={16} />
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-7 gap-2 md:gap-3">
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+          <div key={d} className="text-center text-[10px] font-black text-gray-600 uppercase tracking-widest pb-4 md:pb-6">{d}</div>
+        ))}
+        
+        {days.map((day, idx) => {
+          if (day === null) return <div key={`empty-${idx}`} />;
+          
+          const dateObj = new Date(year, month, day);
+          const dateStr = getLocalDateString(dateObj);
+          const isToday = dateStr === todayStr;
+          const hasPresence = presenceDays.includes(dateStr);
+          
+          return (
+            <motion.div
+              key={day}
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: day * 0.01 }}
+              className={`relative aspect-square rounded-xl md:rounded-2xl border flex flex-col items-center justify-center transition-all group ${
+                hasPresence 
+                  ? 'bg-amber-500/10 border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.05)]' 
+                  : 'bg-white/2 border-white/5 hover:bg-white/5 hover:border-white/10'
+              } ${isToday ? 'ring-2 ring-amber-500 ring-offset-4 ring-offset-black' : ''}`}
+            >
+              <span className={`text-base md:text-xl font-display font-black leading-none ${hasPresence ? 'text-amber-500' : 'text-white/20'}`}>
+                {day}
+              </span>
+              
+              {hasPresence && (
+                <motion.div 
+                  layoutId="presence-glow"
+                  className="absolute bottom-2 md:bottom-3 w-1 h-1 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,1)]"
+                />
+              )}
+            </motion.div>
+          );
+        })}
+      </div>
+
+      <div className="mt-10 flex flex-wrap gap-6 items-center border-t border-white/5 pt-8">
+        <div className="flex items-center gap-3">
+          <div className="w-4 h-4 rounded-lg bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
+          <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Presence / उपस्थिति</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="w-4 h-4 rounded-lg bg-white/2 border border-white/5" />
+          <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Inactivity / निष्क्रिय</span>
+        </div>
+        <div className="ml-auto flex items-center gap-4">
+          <div className="bg-amber-500/10 border border-amber-500/20 px-4 py-2 rounded-xl text-center min-w-[100px]">
+             <div className="text-[10px] font-black text-amber-500/60 uppercase tracking-widest leading-tight">Presence</div>
+             <div className="text-sm font-bold text-amber-500">{presenceDays.length} Days</div>
+          </div>
+          <div className="bg-white/5 border border-white/10 px-4 py-2 rounded-xl text-center min-w-[100px]">
+             <div className="text-[10px] font-black text-white/40 uppercase tracking-widest leading-tight">Journey</div>
+             <div className="text-sm font-bold text-white uppercase">{completedDaysCount}/100</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- Main App ---
+
+export default function App() {
+  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<TabType>('journey');
+  const [isSidebarOpen, setSidebarOpen] = useState(false); // Default to closed on mobile
+  const [posts, setPosts] = useState<CommunityPost[]>([]);
+  
+  // Dynamic Content
+  const [journeyModules, setJourneyModules] = useState<JourneyModule[]>([]);
+  const [archives, setArchives] = useState<VideoArchive[]>([]);
+  const [library, setLibrary] = useState<LibraryBook[]>([]);
+  const [stats, setStats] = useState({ users: 0, posts: 0, totalXp: 0 });
+  const [rank, setRank] = useState<number | null>(null);
+
+  const [selectedVideo, setSelectedVideo] = useState<VideoArchive | null>(null);
+  const [selectedBook, setSelectedBook] = useState<LibraryBook | null>(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isAscensionOpen, setIsAscensionOpen] = useState(false);
+
+  // Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const getYouTubeId = (url: string) => {
+    if (!url) return null;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : url;
+  };
+
+  const getDrivePreviewUrl = (url: string) => {
+    if (!url) return null;
+    // Regex for both /file/d/ID and ?id=ID formats
+    const driveRegex = /(?:drive\.google\.com\/(?:file\/d\/|open\?id=|file\/u\/\d+\/d\/)|docs\.google\.com\/(?:file\/d\/|open\?id=|file\/u\/\d+\/d\/))([a-zA-Z0-9_-]+)/;
+    const match = url.match(driveRegex);
+    if (match && match[1]) {
+      return `https://drive.google.com/file/d/${match[1]}/preview`;
+    }
+    return url;
+  };
+
+  // Auth & Profile Sync
+  useEffect(() => {
+    let unsubProfile: (() => void) | null = null;
+
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const refCode = urlParams.get('ref');
+      if (refCode) {
+        localStorage.setItem('t2s_referral', refCode);
+      }
+
+      setUser(firebaseUser);
+      if (firebaseUser) {
+        const userRef = doc(db, 'users', firebaseUser.uid);
+        const adminRef = doc(db, 'admins', firebaseUser.uid);
+        
+        try {
+          // Check admin status once at login
+          const adminSnap = await getDoc(adminRef).catch(err => {
+            handleFirestoreError(err, OperationType.GET, `admins/${firebaseUser.uid}`);
+            throw err;
+          });
+          const isAdminUser = adminSnap.exists() || firebaseUser.email === 'shivshivamxyz@gmail.com';
+          
+          // Initial fetch & Streak Calculation
+          const userSnap = await getDoc(userRef).catch(err => {
+            handleFirestoreError(err, OperationType.GET, `users/${firebaseUser.uid}`);
+            throw err;
+          });
+          
+          const now = new Date();
+          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+
+          if (!userSnap.exists()) {
+            const storedRef = localStorage.getItem('t2s_referral');
+            const newProfile: UserProfile = {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email || '',
+              displayName: firebaseUser.displayName || 'Anonymous User',
+              photoURL: firebaseUser.photoURL || '',
+              xp: 0,
+              level: 1,
+              completedDays: [],
+              presenceDays: [getLocalDateString()],
+              updatedAt: serverTimestamp(),
+              lastLoginAt: serverTimestamp(),
+              streak: 1,
+              isAdmin: isAdminUser,
+              bio: "",
+              referredBy: storedRef || undefined
+            };
+            await setDoc(userRef, newProfile).catch(err => {
+              handleFirestoreError(err, OperationType.CREATE, `users/${firebaseUser.uid}`);
+              throw err;
+            });
+          } else {
+            const userData = userSnap.data();
+            const lastLogin = userData.lastLoginAt?.toDate?.() || new Date(0);
+            const lastLoginDate = new Date(lastLogin.getFullYear(), lastLogin.getMonth(), lastLogin.getDate()).getTime();
+            
+            const diffDays = Math.floor((today - lastLoginDate) / (1000 * 60 * 60 * 24));
+            
+            let updates: any = { lastLoginAt: serverTimestamp() };
+            const todayStr = getLocalDateString();
+            if (!userData.presenceDays?.includes(todayStr)) {
+              updates.presenceDays = arrayUnion(todayStr);
+            }
+
+            if (diffDays === 1) {
+              updates.streak = (userData.streak || 0) + 1;
+            } else if (diffDays > 1) {
+              updates.streak = 1;
+            }
+            
+            // Always update presence if missing, or update streak/lastLogin if 1+ day passed
+            if (updates.presenceDays || diffDays >= 1) {
+              await updateDoc(userRef, updates).catch(err => {
+                handleFirestoreError(err, OperationType.UPDATE, `users/${firebaseUser.uid}`);
+                throw err;
+              });
+            }
+          }
+
+          // Listener for profile updates (isStrategist, displayName, etc)
+          unsubProfile = onSnapshot(userRef, (snap) => {
+            if (snap.exists()) {
+              setProfile({ ...snap.data(), isAdmin: isAdminUser } as UserProfile);
+            }
+          }, (error) => handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}/snapshot`));
+
+        } catch (error) {
+          console.error("Profile Sync Error:", error);
+        }
+      } else {
+        setProfile(null);
+        if (unsubProfile) {
+          unsubProfile();
+          unsubProfile = null;
+        }
+      }
+      setLoading(false);
+    });
+
+    return () => {
+      unsubscribe();
+      if (unsubProfile) unsubProfile();
+    };
+  }, []);
+
+  // Content Subscriptions
+  useEffect(() => {
+    if (!user) return;
+
+    const unsubPosts = onSnapshot(query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(50)), (snap) => {
+      setPosts(snap.docs.map(d => ({ id: d.id, ...d.data() } as CommunityPost)));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'posts'));
+
+    const unsubJourney = onSnapshot(query(collection(db, 'journey'), orderBy('day', 'asc')), (snap) => {
+      setJourneyModules(snap.docs.map(d => ({ id: d.id, ...d.data() } as JourneyModule)));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'journey'));
+
+    const unsubArchives = onSnapshot(query(collection(db, 'archives'), orderBy('createdAt', 'desc')), (snap) => {
+      setArchives(snap.docs.map(d => ({ id: d.id, ...d.data() } as VideoArchive)));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'archives'));
+
+    const unsubLibrary = onSnapshot(query(collection(db, 'library'), orderBy('title', 'asc')), (snap) => {
+      setLibrary(snap.docs.map(d => ({ id: d.id, ...d.data() } as LibraryBook)));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'library'));
+
+    return () => {
+      unsubPosts();
+      unsubJourney();
+      unsubArchives();
+      unsubLibrary();
+    };
+  }, [user]);
+
+  // Dynamic Metrics & Rank
+  useEffect(() => {
+    if (!user || !profile) return;
+
+    const fetchMetrics = async () => {
+      try {
+        const usersCount = await getCountFromServer(collection(db, 'users')).catch(err => {
+          if (err?.message?.includes('failed') || err?.code === 'unavailable') {
+             // Silently retry later for common connection blips
+             return null;
+          }
+          handleFirestoreError(err, OperationType.GET, 'users/count');
+          throw err;
+        });
+
+        const postsCount = await getCountFromServer(collection(db, 'posts')).catch(err => {
+          if (err?.message?.includes('failed') || err?.code === 'unavailable') return null;
+          handleFirestoreError(err, OperationType.GET, 'posts/count');
+          throw err;
+        });
+
+        if (!usersCount || !postsCount) {
+          console.warn("Metrics fetch incomplete due to connection issues, will retry...");
+          return;
+        }
+        
+        // Fetch users for rank calculation
+        const qRank = query(collection(db, 'users'), where('xp', '>', profile.xp));
+        const rankSnap = await getCountFromServer(qRank).catch(err => {
+          if (err?.message?.includes('failed') || err?.code === 'unavailable') return null;
+          handleFirestoreError(err, OperationType.GET, 'users/rank-count');
+          throw err;
+        });
+        
+        setStats({
+          users: usersCount.data().count,
+          posts: postsCount.data().count,
+          totalXp: (profile.xp || 0)
+        });
+        if (rankSnap) {
+          setRank(rankSnap.data().count + 1);
+        }
+      } catch (e) {
+        console.error("Failed to fetch metrics:", e);
+      }
+    };
+
+    fetchMetrics();
+    const interval = setInterval(fetchMetrics, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, [user, profile?.xp]);
+
+  const handleLogin = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error("Login failed:", error);
+    }
+  };
+
+  const handleLogout = () => signOut(auth);
+
+  const completeDay = async (day: number) => {
+    if (!user || !profile || profile.completedDays.includes(day)) return;
+
+    const userRef = doc(db, 'users', user.uid);
+    const xpGain = 100; // Base XP for completing a day
+    const bonusXp = profile.streak ? Math.min(profile.streak * 5, 50) : 0; // Streak bonus
+    const totalGain = xpGain + bonusXp;
+    
+    const newXp = (profile.xp || 0) + totalGain;
+    const newLevel = Math.floor(newXp / 1000) + 1;
+
+    try {
+      await updateDoc(userRef, {
+        completedDays: arrayUnion(day),
+        presenceDays: arrayUnion(getLocalDateString()),
+        xp: increment(totalGain),
+        level: newLevel,
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+    }
+  };
+
+  const createPost = async (content: string) => {
+    if (!user || !profile || !content.trim()) return;
+    try {
+      const xpGain = 20;
+      const userRef = doc(db, 'users', user.uid);
+      
+      await addDoc(collection(db, 'posts'), {
+        authorId: user.uid,
+        authorName: profile.displayName,
+        authorPhotoURL: profile.photoURL || user.photoURL || null,
+        content,
+        createdAt: serverTimestamp(),
+        likes: 0
+      });
+
+      await updateDoc(userRef, {
+        xp: increment(xpGain),
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'posts');
+    }
+  };
+
+  const likePost = async (postId: string, authorId: string) => {
+    if (!user || !profile) return;
+    const postRef = doc(db, 'posts', postId);
+    const authorRef = doc(db, 'users', authorId);
+    const likerRef = doc(db, 'users', user.uid);
+
+    try {
+      await updateDoc(postRef, { likes: increment(1) });
+      
+      // Award XP to author (+5)
+      if (authorId !== user.uid) {
+        await updateDoc(authorRef, {
+          xp: increment(5),
+          updatedAt: serverTimestamp()
+        });
+      }
+
+      // Award XP to liker (+2)
+      await updateDoc(likerRef, {
+        xp: increment(2),
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `posts/${postId}`);
+    }
+  };
+
+  if (loading) return <LoadingScreen />;
+
+  if (!user) return <LoginScreen onLogin={handleLogin} />;
+
+  return (
+    <div className="min-h-screen bg-[#050505] text-gray-200 flex font-sans selection:bg-purple-500/30">
+      <div className="fixed inset-0 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] opacity-30 z-0" />
+      
+      {/* Mobile Overlay */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSidebarOpen(false)}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+          />
+        )}
+      </AnimatePresence>
+      
+      <aside className={`fixed lg:sticky top-0 h-screen ${isSidebarOpen ? 'w-72 translate-x-0' : 'w-0 lg:w-20 -translate-x-full lg:translate-x-0'} bg-[#0a0a0a] border-r border-white/5 transition-all duration-500 ease-in-out flex flex-col z-50 overflow-hidden`}>
+        <div className="h-24 flex items-center px-8 border-b border-white/5 overflow-hidden">
+          <Logo className="min-w-[40px] w-10 h-10" src={import.meta.env.VITE_APP_LOGO_URL || undefined} />
+          <AnimatePresence>
+            {isSidebarOpen && (
+              <motion.span initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}
+                className="ml-3 font-black text-xl tracking-tighter text-white whitespace-nowrap"
+              >
+                Talk2Society
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto scrollbar-hide">
+          <NavItem icon={<Flame className="w-5 h-5" />} label="100-Day Journey" secondaryLabel="१०० दिन का सफर" active={activeTab === 'journey'} onClick={() => setActiveTab('journey')} collapsed={!isSidebarOpen} />
+          <NavItem icon={<PlayCircle className="w-5 h-5" />} label="Video Archives" secondaryLabel="वीडियो लाइब्रेरी" active={activeTab === 'archives'} onClick={() => setActiveTab('archives')} collapsed={!isSidebarOpen} />
+          <NavItem icon={<BookOpen className="w-5 h-5" />} label="The Great Library" secondaryLabel="महान पुस्तकालय" active={activeTab === 'library'} onClick={() => setActiveTab('library')} collapsed={!isSidebarOpen} />
+          <NavItem icon={<Users className="w-5 h-5" />} label="Community" secondaryLabel="समुदाय" active={activeTab === 'community'} onClick={() => setActiveTab('community')} collapsed={!isSidebarOpen} />
+          <NavItem icon={<Trophy className="w-5 h-5" />} label="Leaderboard" secondaryLabel="लीडरबोर्ड" active={activeTab === 'leaderboard'} onClick={() => setActiveTab('leaderboard')} collapsed={!isSidebarOpen} />
+          <NavItem icon={<ShoppingCart className="w-5 h-5" />} label="Strategic Shop" secondaryLabel="रणनीतिक दुकान" active={activeTab === 'shop'} onClick={() => setActiveTab('shop')} collapsed={!isSidebarOpen} />
+          <NavItem icon={<User className="w-5 h-5" />} label="Profile Hub" secondaryLabel="प्रोफ़ाइल हब" active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} collapsed={!isSidebarOpen} />
+          
+          {profile?.isAdmin && (
+            <NavItem icon={<Settings className="w-5 h-5" />} label="Admin Panel" secondaryLabel="एडमिन कंट्रोल" active={activeTab === 'admin'} onClick={() => setActiveTab('admin')} collapsed={!isSidebarOpen} />
+          )}
+        </nav>
+
+        <div className="p-4 border-t border-white/5 space-y-4 shrink-0 pb-8 lg:pb-4">
+          <AnimatePresence>
+            {isSidebarOpen && profile && (() => {
+              const currentRank = getRankFromXP(profile.xp || 0);
+              const nextRankInfo = getNextRank(profile.xp || 0);
+              const xpInCurrentRank = (profile.xp || 0) - currentRank.threshold;
+              const xpNeededForNext = nextRankInfo.rank ? nextRankInfo.rank.threshold - currentRank.threshold : 1000;
+              const progress = nextRankInfo.rank ? (xpInCurrentRank / xpNeededForNext) * 100 : 100;
+
+              return (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white/5 rounded-2xl p-5 border border-white/5">
+                  <div className="flex justify-between items-end mb-4">
+                    <div className="flex-1">
+                      <div className={`text-[9px] px-2 py-0.5 rounded-full w-fit mb-1 font-black uppercase tracking-widest text-white ${currentRank.color}`}>
+                        {currentRank.name}
+                      </div>
+                      <div className="text-[8px] text-white/30 font-bold uppercase tracking-wider mb-1">
+                        {profile.isAdmin ? 'Admin' : profile.isStrategist ? 'Special Member' : currentRank.hindiName}
+                      </div>
+                      <div className="text-base font-bold text-white capitalize">{profile.displayName.split(' ')[0]}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xl font-bold font-mono leading-none">{profile.xp}</div>
+                      <div className="text-[10px] text-gray-500 uppercase tracking-wider">Total XP</div>
+                    </div>
+                  </div>
+                  <ProgressBar progress={progress} label={nextRankInfo.rank ? `Next: ${nextRankInfo.rank.name}` : 'Highest Rank Reached'} />
+                </motion.div>
+              );
+            })()}
+          </AnimatePresence>
+          <button onClick={handleLogout} className="w-full flex items-center justify-center gap-3 p-3 text-gray-500 hover:text-white hover:bg-red-500/10 rounded-xl transition-all group">
+            <LogOut className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            {isSidebarOpen && (
+              <div className="flex flex-col items-start gap-0.5">
+                <span className="text-xs font-bold uppercase tracking-widest leading-tight">Logout</span>
+                <span className="text-[8px] text-gray-600 font-bold leading-tight">लॉगआउट करें</span>
+              </div>
+            )}
+          </button>
+        </div>
+      </aside>
+
+      <main className="flex-1 flex flex-col relative z-10">
+        <header className="h-20 md:h-24 border-b border-white/5 bg-[#050505]/80 backdrop-blur-md flex items-center justify-between px-6 md:px-10 sticky top-0 z-30">
+          <div className="flex items-center gap-2 md:gap-4">
+            <button onClick={() => setSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-white/5 rounded-lg transition-colors">
+              {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+            <h2 className="text-[10px] md:text-xs uppercase tracking-wider font-semibold text-gray-400 whitespace-nowrap">
+              Menu / <span className="text-white">{activeTab.replace('-', ' ')}</span>
+            </h2>
+          </div>
+          <div className="flex items-center gap-3 md:gap-6">
+            <div className="hidden sm:flex flex-col items-end">
+              <span className="text-[10px] uppercase tracking-wider text-white/40 font-bold">Total Points</span>
+              <span className="text-lg md:text-xl font-bold font-mono text-white leading-none">{(profile?.xp || 0).toLocaleString()}</span>
+            </div>
+            <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl border border-white/10 bg-white/5 flex items-center justify-center p-0.5 overflow-hidden ring-1 ring-white/5 ring-offset-2 ring-offset-black cursor-pointer hover:scale-105 transition-transform" onClick={() => setActiveTab('profile')}>
+              <img src={profile?.photoURL || user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`} alt="avatar" className="w-full h-full object-cover" />
+            </div>
+          </div>
+        </header>
+
+        <section className="flex-1 overflow-y-auto p-6 md:p-12 lg:p-16 max-w-7xl w-full mx-auto">
+          <AnimatePresence mode="wait">
+            {activeTab === 'journey' && (
+              <motion.div key="journey" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-16">
+                {/* Real-time Journey Calendar */}
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000">
+                  <PresenceCalendar 
+                    presenceDays={profile?.presenceDays || []} 
+                    completedDaysCount={profile?.completedDays?.length || 0}
+                  />
+                </div>
+
+                {(() => {
+                  const nextDay = (profile?.completedDays.length || 0) + 1;
+                  const currentModule = journeyModules.find(m => m.day === nextDay) || journeyModules[0];
+                  
+                  return (
+                    <div className="bg-[#0a0a0a] border border-white/10 rounded-[32px] md:rounded-[48px] p-6 md:p-12 relative overflow-hidden group shadow-2xl">
+                      <div className="relative z-10 space-y-6 md:space-y-8">
+                        <div className="flex items-center gap-4">
+                          <div className="w-2.5 h-2.5 bg-white rounded-full animate-pulse" />
+                          <span className="text-xs md:text-sm font-bold uppercase tracking-wider text-white/60">Your Path / आपकी प्रगति</span>
+                        </div>
+                        <h2 className="text-3xl md:text-5xl font-display font-black text-white tracking-tight leading-tight uppercase">
+                          TODAY'S GOAL: <span className="text-gray-500">{currentModule?.title || 'Starting Point'}</span>
+                        </h2>
+                        <h3 className="text-xl md:text-3xl font-bold text-white/40 tracking-tight">लक्ष्य: {currentModule?.title || 'शुरुआत'}</h3>
+                        <p className="text-gray-400 text-sm md:text-lg max-w-2xl leading-relaxed font-medium">
+                          {currentModule?.description || 'Your journey into mind training begins here. Complete the modules below to progress.'}
+                        </p>
+                        <button 
+                          onClick={() => {
+                            if (currentModule) {
+                              const moduleEl = document.getElementById(`module-${currentModule.id}`);
+                              moduleEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }
+                          }} 
+                          className="w-full sm:w-auto px-8 md:px-12 py-4 md:py-5 bg-white text-black text-xs md:text-sm font-bold uppercase tracking-wider rounded-2xl hover:bg-neutral-200 transition-all flex flex-col items-center gap-1.5 shadow-2xl"
+                        >
+                           <span>{currentModule ? `Start Day ${currentModule.day}` : 'Begin Journey'}</span>
+                           <span className="text-[10px] md:text-[11px] opacity-60 normal-case tracking-normal">{currentModule ? `डे ${currentModule.day} शुरू करें` : 'सफर शुरू करें'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 md:gap-12 pt-8 md:pt-12">
+                  <div className="max-w-2xl space-y-4 md:space-y-6">
+                    <h1 className="text-4xl md:text-7xl font-display font-black text-white tracking-tight leading-tight uppercase">
+                      100-Day <span className="text-gray-500">Journey</span>
+                    </h1>
+                    <p className="text-gray-400 text-lg md:text-2xl leading-relaxed font-medium">
+                      A simple, practical path to improving your mental strength. One step at a time.
+                    </p>
+                  </div>
+                  <div className="bg-white/5 border border-white/5 p-6 md:p-8 rounded-[32px] min-w-[200px] md:min-w-[240px]">
+                    <div className="text-3xl md:text-4xl font-display font-black text-white mb-2">{(profile?.completedDays.length || 0)}/100</div>
+                    <div className="text-[10px] md:text-xs uppercase tracking-wider text-gray-500 font-bold mb-4">Progress Status</div>
+                    <ProgressBar progress={(profile?.completedDays.length || 0)} />
+                  </div>
+                </div>
+
+                {profile && (
+                  <PresenceCalendar 
+                    presenceDays={profile.presenceDays || []} 
+                    completedDaysCount={profile.completedDays?.length || 0}
+                  />
+                )}
+
+                {journeyModules.length === 0 ? <NoContent label="Journey Modules" /> : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {journeyModules.map((module) => {
+                      const isCompleted = profile?.completedDays.includes(module.day);
+                      const isNext = (profile?.completedDays.length || 0) + 1 === module.day;
+                      const journeyLocked = !isCompleted && !isNext && module.day > 1;
+                      const isPremiumLocked = module.isPremium && !profile?.isStrategist && !profile?.isAdmin;
+                      const finalLocked = journeyLocked || isPremiumLocked;
+
+                      return (
+                        <Card key={module.id} id={`module-${module.id}`} className={finalLocked ? 'opacity-40 grayscale pointer-events-none' : ''}>
+                          <div className="flex justify-between items-start mb-6">
+                            <span className="text-5xl font-black text-white/5 group-hover:text-purple-500/20 transition-colors duration-500 font-mono">
+                              {module.day < 10 ? `0${module.day}` : module.day}
+                            </span>
+                            {isCompleted ? <CheckCircle2 className="w-5 h-5 text-white" /> : finalLocked ? <Lock className="w-5 h-5 text-gray-700" /> : <ChevronRight className="w-5 h-5 text-white" />}
+                          </div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="text-lg font-bold text-white leading-tight">{module.title}</h3>
+                            {module.isPremium && <Zap className="w-4 h-4 text-white fill-white shrink-0" />}
+                          </div>
+                          <p className="text-xs text-gray-500 leading-relaxed mb-6 h-12 overflow-hidden line-clamp-3">{module.description}</p>
+                          {!finalLocked && !isCompleted && (
+                            <button onClick={() => completeDay(module.day)} className="w-full py-3 bg-white text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-200 transition-all flex flex-col items-center">
+                              <span className="flex items-center gap-2"><Zap className="w-3 h-3" /> Integrate</span>
+                              <span className="text-[8px] normal-case tracking-normal opacity-50">शुरू करें</span>
+                            </button>
+                          )}
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {activeTab === 'archives' && (
+              <motion.div key="archives" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8">
+                {archives.length === 0 ? <NoContent label="Video Archives" /> : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {archives.map(v => (
+                      <VideoCard 
+                        key={v.id} 
+                        video={v} 
+                        isLocked={v.isPremium && !profile?.isStrategist && !profile?.isAdmin}
+                        onClick={() => setSelectedVideo(v)} 
+                      />
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {activeTab === 'library' && (
+              <motion.div key="library" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {library.length === 0 ? (
+          <div className="lg:col-span-3">
+            <NoContent label="Library Archives" />
+            {profile?.isAdmin && (
+              <div className="text-center">
+                <button 
+                  onClick={() => setActiveTab('admin')} 
+                  className="text-amber-500 text-xs font-black uppercase tracking-widest border-b border-amber-500/20 hover:border-amber-500 transition-all"
+                >
+                  Go to Command Panel to Seed Library
+                </button>
+              </div>
+            )}
+          </div>
+        ) : library.map(b => (
+                  <BookCard 
+                    key={b.id} 
+                    book={b} 
+                    isLocked={b.isPremium && !profile?.isStrategist && !profile?.isAdmin}
+                    onClick={() => setSelectedBook(b)}
+                  />
+                ))}
+              </motion.div>
+            )}
+
+            {activeTab === 'community' && (
+              <motion.div key="community" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="max-w-3xl mx-auto space-y-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                  <CommunityStat label="Users Online" secondaryLabel="सक्रीय सदस्य" value={stats.users.toLocaleString()} icon={<Users className="w-4 h-4" />} />
+                  <CommunityStat label="Total Posts" secondaryLabel="कुल पोस्ट" value={stats.posts.toLocaleString()} icon={<TrendingUp className="w-4 h-4" />} />
+                  <div className="sm:col-span-2 lg:col-span-1">
+                    <CommunityStat label="Global Level" secondaryLabel="ग्लोबल लेवल" value={String(Math.floor(stats.users > 0 ? (stats.totalXp / stats.users) / 100 : 0) + 1)} icon={<Shield className="w-4 h-4" />} />
+                  </div>
+                </div>
+                <PostForm onSubmit={createPost} user={user} displayName={profile?.displayName} />
+                <div className="space-y-4">
+                  {posts.map(post => (
+                    <PostCard 
+                      key={post.id} 
+                      post={post} 
+                      onLike={() => likePost(post.id, post.authorId)} 
+                    />
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'leaderboard' && (
+              <motion.div key="leaderboard" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} className="space-y-12">
+                <div className="space-y-6">
+                  <h1 className="text-4xl md:text-7xl font-display font-black text-white tracking-tight uppercase italic underline decoration-amber-500/30 decoration-8 underline-offset-8">Global <span className="text-gray-500">Hierarchy</span></h1>
+                  <p className="text-gray-400 text-lg md:text-2xl leading-relaxed font-medium">The most disciplined minds in the society. Ranks are awarded based on total experience and consistency.</p>
+                </div>
+                <div className="max-w-5xl">
+                   <LeaderboardView currentUserUid={user?.uid} />
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'profile' && profile && (
+              <motion.div key="profile" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <ProfileView profile={profile} rank={rank} onOpenAscension={() => setIsAscensionOpen(true)} />
+              </motion.div>
+            )}
+
+            {activeTab === 'shop' && (
+              <motion.div key="shop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <ShopView profile={profile!} />
+              </motion.div>
+            )}
+
+            {activeTab === 'admin' && profile?.isAdmin && (
+              <motion.div key="admin" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <AdminPanel />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </section>
+      </main>
+
+      <AnimatePresence>
+        {selectedVideo && (
+          <ContentModal 
+            title={selectedVideo.title} 
+            onClose={() => setSelectedVideo(null)}
+          >
+            <div className="aspect-video bg-black rounded-2xl overflow-hidden relative border border-white/5">
+              {selectedVideo.videoUrl ? (
+                <iframe
+                  src={`https://www.youtube.com/embed/${getYouTubeId(selectedVideo.videoUrl)}?autoplay=1`}
+                  className="w-full h-full border-0 grayscale hover:grayscale-0 transition-all duration-700"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : (
+                <>
+                  <img src={selectedVideo.thumbnail} className="w-full h-full object-cover opacity-20 grayscale" alt="video" />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6">
+                    <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-6 shadow-[0_0_50px_rgba(255,255,255,0.1)]">
+                      <PlayCircle className="w-10 h-10 text-black fill-black" />
+                    </div>
+                    <h2 className="text-2xl font-black text-white italic mb-2 tracking-tighter uppercase">{selectedVideo.title}</h2>
+                    <div className="text-white/40 font-black text-[10px] uppercase tracking-[0.3em]">Authorized Archive Stream</div>
+                    <p className="mt-8 text-gray-600 text-xs max-w-md font-medium leading-relaxed font-mono uppercase">
+                      Deciphering behavioral layers. Audio stream encrypted.
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          </ContentModal>
+        )}
+
+        {selectedBook && (
+          <ContentModal 
+            title={selectedBook.title} 
+            onClose={() => setSelectedBook(null)}
+            maxWidth="max-w-7xl"
+          >
+            <div className="h-full flex flex-col min-h-[85vh]">
+              <div className="p-8 border-b border-white/5 bg-black/40 shrink-0 flex flex-col md:flex-row justify-between gap-6">
+                <div className="flex gap-8 items-start">
+                  <div className="w-20 h-28 bg-neutral-900 border border-white/5 rounded-xl flex items-center justify-center shadow-2xl shrink-0">
+                    <BookOpen className="w-8 h-8 text-amber-500" />
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <div>
+                      <div className="text-amber-500 text-[8px] font-black uppercase tracking-widest mb-1">{selectedBook.category}</div>
+                      <h2 className="text-2xl font-black text-white italic tracking-tighter leading-none">{selectedBook.title}</h2>
+                      <div className="text-[10px] text-gray-500 mt-1 font-bold uppercase tracking-widest">— {selectedBook.author}</div>
+                    </div>
+                    <p className="text-gray-400 text-[10px] italic leading-relaxed line-clamp-2">
+                      "{selectedBook.excerpt}"
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex-1 bg-neutral-900 relative min-h-[600px]">
+                {selectedBook.fileUrl ? (
+                  <>
+                    <div className="absolute inset-0 flex items-center justify-center bg-neutral-900 z-0">
+                      <div className="text-center p-8">
+                        <div className="w-12 h-12 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                        <p className="text-gray-500 text-xs font-bold uppercase tracking-widest">Initializing Secure Nexus Reader...</p>
+                        <p className="text-gray-700 text-[10px] mt-2 italic max-w-xs mx-auto">
+                          If the manuscript remains encrypted (does not load), ensure you are logged into Google and "Third-party cookies" are allowed for this session.
+                        </p>
+                      </div>
+                    </div>
+                    <iframe 
+                      key={selectedBook.fileUrl}
+                      src={getDrivePreviewUrl(selectedBook.fileUrl) || undefined} 
+                      className="absolute inset-0 w-full h-full border-0 z-10"
+                      title="book-viewer"
+                      allow="autoplay"
+                      sandbox="allow-scripts allow-same-origin allow-forms"
+                      referrerPolicy="no-referrer"
+                    />
+                  </>
+                ) : (
+                  <div className="h-full flex items-center justify-center p-12 text-center bg-[#0a0a0a]">
+                    <div className="max-w-md space-y-6">
+                      <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto">
+                        <Lock className="w-8 h-8 text-amber-500" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-black text-white italic tracking-tighter uppercase mb-2">Manuscript Restricted</h3>
+                        <p className="text-gray-500 text-xs font-medium leading-relaxed uppercase tracking-widest">
+                          The central database record for this manuscript does not contain a verified link. 
+                        </p>
+                      </div>
+                      <div className="p-4 bg-white/5 border border-white/5 rounded-2xl text-[10px] text-gray-400 font-bold uppercase tracking-widest text-left">
+                        <p className="mb-2 text-amber-500/80">ADMIN ACTION REQUIRED:</p>
+                        1. Visit Nexus Command (Admin Panel)<br/>
+                        2. Edit this book record<br/>
+                        3. Provide a valid Google Drive Sharing URL
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </ContentModal>
+        )}
+
+        {isSearchOpen && (
+          <SearchModal 
+            onClose={() => setIsSearchOpen(false)} 
+            journey={journeyModules} 
+            archives={archives} 
+            library={library} 
+            onSelect={(type, item) => {
+              if (type === 'journey') setActiveTab('journey');
+              if (type === 'archive') {
+                setActiveTab('archives');
+                setSelectedVideo(item as VideoArchive);
+              }
+              if (type === 'library') {
+                setActiveTab('library');
+                setSelectedBook(item as LibraryBook);
+              }
+              setIsSearchOpen(false);
+            }} 
+          />
+        )}
+
+        {isAscensionOpen && (
+          <AscensionModal onClose={() => setIsAscensionOpen(false)} profile={profile!} />
+        )}
+      </AnimatePresence>
+
+    </div>
+  );
+}
+
+function ContentModal({ title, onClose, children, maxWidth = "max-w-5xl" }: { title: string, onClose: () => void, children: React.ReactNode, maxWidth?: string }) {
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }} 
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md"
+    >
+      <div className="absolute inset-0" onClick={onClose} />
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className={`bg-[#0a0a0a] border-t sm:border border-white/10 w-full ${maxWidth} rounded-t-[32px] sm:rounded-[32px] overflow-hidden shadow-2xl flex flex-col h-[90vh] sm:h-auto sm:max-h-[95vh] relative z-10`}
+      >
+        <div className="h-16 px-6 md:px-8 border-b border-white/5 flex items-center justify-between bg-black/20 shrink-0">
+          <div className="flex items-center gap-4">
+            <button onClick={onClose} className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-xl transition-all text-gray-400 hover:text-white group">
+              <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+              <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Back</span>
+            </button>
+            <div className="w-[1px] h-4 bg-white/10 mx-1" />
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+              <div className="flex flex-col items-start gap-0.5">
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white italic leading-tight">{title}</span>
+                <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest leading-tight">सामाग्री लोड हो रही है</span>
+              </div>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-lg transition-colors text-gray-500 hover:text-white sm:hidden">
+            <X size={20} />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-0">
+          {children}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// --- Modals ---
+
+function SearchModal({ onClose, journey, archives, library, onSelect }: { 
+  onClose: () => void, 
+  journey: JourneyModule[], 
+  archives: VideoArchive[], 
+  library: LibraryBook[], 
+  onSelect: (type: string, item: any) => void 
+}) {
+  const [queryStr, setQueryStr] = useState('');
+  
+  const results = [
+    ...journey.map(m => ({ ...m, type: 'journey' })),
+    ...archives.map(a => ({ ...a, type: 'archive' })),
+    ...library.map(l => ({ ...l, type: 'library' }))
+  ].filter(item => {
+    const title = item.title?.toLowerCase() || '';
+    const desc = (item as any).description?.toLowerCase() || (item as any).excerpt?.toLowerCase() || '';
+    const q = queryStr.toLowerCase();
+    return title.includes(q) || desc.includes(q);
+  }).slice(0, 8);
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-start justify-center pt-24 px-6" onClick={onClose}>
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }} 
+        animate={{ opacity: 1, y: 0 }} 
+        className="w-full max-w-2xl bg-neutral-900 border border-white/10 rounded-[32px] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.5)]"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="p-6 border-b border-white/5 flex items-center gap-4">
+          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-lg transition-colors text-gray-500 hover:text-white">
+            <ArrowLeft size={20} />
+          </button>
+          <Target className="text-white w-6 h-6" />
+          <input 
+            autoFocus
+            placeholder="COMMAND: SEARCH DATABASE..." 
+            className="flex-1 bg-transparent border-none outline-none text-xl font-black italic text-white placeholder:text-neutral-700 font-mono"
+            value={queryStr}
+            onChange={e => setQueryStr(e.target.value)}
+          />
+          <div className="px-2 py-1 bg-white/5 rounded text-[8px] font-black uppercase text-gray-700 font-mono">ESC TO EXIT</div>
+        </div>
+        <div className="max-h-[60vh] overflow-y-auto p-4 space-y-2">
+          {queryStr && results.length === 0 && (
+            <div className="py-12 text-center text-gray-600 font-bold uppercase tracking-widest text-xs">Zero Matches Found in Core</div>
+          )}
+          {!queryStr && (
+            <div className="py-12 text-center text-gray-600 font-bold uppercase tracking-widest text-xs">Input Directive to Search</div>
+          )}
+          {results.map((r, i: number) => (
+            <button 
+              key={i}
+              onClick={() => onSelect(r.type, r)}
+              className="w-full flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 rounded-2xl border border-transparent hover:border-white/10 transition-all text-left"
+            >
+              <div className="flex items-center gap-4">
+                <div className="p-2 rounded-lg bg-white/10 text-white">
+                  {r.type === 'journey' ? <Target size={16}/> : r.type === 'archive' ? <PlayCircle size={16}/> : <BookOpen size={16}/>}
+                </div>
+                <div>
+                  <div className="text-white font-bold">{r.title}</div>
+                  <div className="text-[10px] text-gray-700 uppercase font-black tracking-widest font-mono italic">{r.type} ARCHIVE</div>
+                </div>
+              </div>
+              <ChevronRight size={16} className="text-gray-800" />
+            </button>
+          ))}
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+function AscensionModal({ onClose, profile }: { onClose: () => void, profile: UserProfile }) {
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+
+  const handleAscension = async () => {
+    setLoading(true);
+    // Simulate payment call
+    setTimeout(async () => {
+      try {
+        await updateDoc(doc(db, 'users', profile.uid), { isStrategist: true });
+        setStep(3);
+      } catch (e) {
+        handleFirestoreError(e, OperationType.UPDATE, `users/${profile.uid}`);
+      } finally {
+        setLoading(false);
+      }
+    }, 2000);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[100] flex items-center justify-center p-6" onClick={onClose}>
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0 }} 
+        animate={{ scale: 1, opacity: 1 }} 
+        className="w-full max-w-lg bg-[#0a0a0a] border border-white/20 rounded-[40px] overflow-hidden shadow-[0_0_100px_rgba(255,255,255,0.05)]"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="h-2 bg-neutral-900 w-full overflow-hidden">
+          <motion.div 
+            initial={{ width: '33%' }} 
+            animate={{ width: step === 1 ? '33%' : step === 2 ? '66%' : '100%' }} 
+            className="h-full bg-white shadow-[0_0_20px_rgba(255,255,255,0.4)]"
+          />
+        </div>
+        
+        <div className="p-12 text-center space-y-8 relative">
+          <button 
+            onClick={onClose} 
+            className="absolute top-8 left-8 p-2 hover:bg-white/5 rounded-lg transition-colors text-gray-500 hover:text-white"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          {step === 1 && (
+            <>
+              <div className="w-24 h-24 bg-white/5 border border-white/10 rounded-[32px] mx-auto flex items-center justify-center">
+                <Zap size={48} className="text-white fill-white" />
+              </div>
+              <div className="space-y-4">
+                <h2 className="text-4xl font-black text-white italic tracking-tighter uppercase">Special Access / विशेष एक्सेस</h2>
+                <p className="text-gray-500 text-sm leading-relaxed font-medium">
+                  Unlock all premium books and video lessons. Join our community of advanced mind trainers.
+                </p>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/5 text-left">
+                  <div className="w-10 h-10 bg-white text-black rounded-xl flex items-center justify-center font-black italic">$99</div>
+                  <div>
+                    <div className="text-white font-bold uppercase text-xs tracking-widest">Lifetime Access</div>
+                    <div className="text-[10px] text-gray-600 font-bold">जीवनभर के लिए एक्सेस</div>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setStep(2)}
+                  className="w-full py-4 bg-white text-black rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-gray-200 transition-all flex flex-col items-center"
+                >
+                  <span>Continue to Unlock</span>
+                  <span className="text-[8px] normal-case tracking-normal opacity-60">आगे बढ़ें</span>
+                </button>
+              </div>
+            </>
+          )}
+
+          {step === 2 && (
+            <>
+              <div className="space-y-6">
+                <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-8" />
+                <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter">Synchronizing Ledger...</h2>
+                <p className="text-gray-600 text-xs font-bold uppercase tracking-[0.2em]">Contacting Strategic Reserve</p>
+                <div className="pt-8">
+                   <button 
+                     disabled={loading}
+                     onClick={handleAscension}
+                     className="w-full py-4 bg-white text-black rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl"
+                   >
+                     {loading ? "PROCESSING..." : "FINAL AUTHORIZATION"}
+                   </button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {step === 3 && (
+            <>
+              <motion.div 
+                initial={{ scale: 0.5 }} 
+                animate={{ scale: 1 }} 
+                className="w-24 h-24 bg-white rounded-[32px] mx-auto flex items-center justify-center shadow-[0_0_50px_rgba(255,255,255,0.2)]"
+              >
+                <CheckCircle2 size={48} className="text-black" />
+              </motion.div>
+              <div className="space-y-4">
+                <h2 className="text-4xl font-black text-white italic tracking-tighter uppercase">Ascension Complete</h2>
+                <p className="text-gray-500 text-sm leading-relaxed font-medium">
+                  Your profile has been elevated to Strategist. Your connection to the Nexus is now absolute.
+                </p>
+                <button 
+                  onClick={onClose}
+                  className="w-full py-4 bg-white text-black rounded-2xl font-black uppercase tracking-widest text-xs"
+                >
+                  Enter the Chamber
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+// --- Sub-Components ---
+
+function ProfileView({ profile, rank, onOpenAscension }: { profile: UserProfile, rank: number | null, onOpenAscension: () => void }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [newName, setNewName] = useState(profile.displayName);
+  const [newBio, setNewBio] = useState(profile.bio || "");
+  const [newPhotoURL, setNewPhotoURL] = useState(profile.photoURL || "");
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 700000) { // Limit to ~700KB for Base64 in Firestore to stay under 1MB doc limit
+      alert("Image is too large. Please select an image under 700KB. (चित्र बहुत बड़ा है। कृपया 700KB से छोटा चित्र चुनें।)");
+      return;
+    }
+
+    setIsUploading(true);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setNewPhotoURL(reader.result as string);
+      setIsUploading(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const updateProfile = async () => {
+    if (
+      (!newName.trim() || newName === profile.displayName) && 
+      newBio === (profile.bio || "") &&
+      newPhotoURL === (profile.photoURL || "")
+    ) {
+      setIsEditing(false);
+      return;
+    }
+    const userRef = doc(db, 'users', profile.uid);
+    try {
+      await updateDoc(userRef, { 
+        displayName: newName,
+        bio: newBio,
+        photoURL: newPhotoURL,
+        updatedAt: serverTimestamp()
+      });
+      setIsEditing(false);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `users/${profile.uid}`);
+    }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-16">
+      <div className="flex flex-col md:flex-row gap-12 items-start md:items-center">
+        <div className="w-40 h-40 rounded-[40px] overflow-hidden ring-4 ring-white/5 ring-offset-8 ring-offset-black shrink-0 shadow-2xl relative group">
+          <img src={newPhotoURL || profile.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.uid}`} alt="avatar" className="w-full h-full object-cover" />
+          {isEditing && (
+            <label className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+              <Upload className="w-8 h-8 text-white mb-2" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-white">Upload New</span>
+              <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+            </label>
+          )}
+          {isUploading && (
+            <div className="absolute inset-0 bg-black/80 flex items-center justify-center">
+              <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+            </div>
+          )}
+        </div>
+        <div className="flex-1 space-y-6">
+          <div className="text-white/40 text-xs font-bold uppercase tracking-wider">Level {profile.level} / चरण {profile.level}</div>
+          
+          {isEditing ? (
+            <div className="space-y-6">
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Identity Display (नाम)</label>
+                <input 
+                  value={newName} 
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="Your Name (आपका नाम)"
+                  className="bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-3xl font-display font-black text-white w-full max-w-sm"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Profile Visual (प्रोफ़ाइल चित्र)</label>
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={() => document.getElementById('avatar-upload')?.click()}
+                    className="flex items-center gap-3 px-6 py-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-amber-500 text-xs font-bold uppercase tracking-wider hover:bg-amber-500/20 transition-all"
+                  >
+                    <ImageIcon size={16} />
+                    Change Photo / फोटो बदलें
+                  </button>
+                  <input id="avatar-upload" type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+                  {newPhotoURL && newPhotoURL.startsWith('data:') && (
+                    <span className="text-[10px] text-green-500 font-bold uppercase tracking-widest">New Image Selected</span>
+                  )}
+                </div>
+              </div>
+              <textarea
+                value={newBio}
+                onChange={(e) => setNewBio(e.target.value)}
+                placeholder="Talk about yourself... (अपने बारे में कुछ लिखें...)"
+                className="bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm text-gray-400 w-full max-w-md h-32 resize-none font-medium"
+              />
+              <div className="flex gap-4">
+                <button onClick={updateProfile} className="px-8 py-3 bg-white text-black rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-3 shadow-xl">
+                  <Save size={16}/> Save Profile / सुरक्षित करें
+                </button>
+                <button onClick={() => {
+                  setIsEditing(false);
+                  setNewName(profile.displayName);
+                  setNewBio(profile.bio || "");
+                  setNewPhotoURL(profile.photoURL || "");
+                }} className="px-8 py-3 bg-white/5 text-white rounded-xl text-xs font-bold uppercase tracking-wider">
+                  Cancel / रद्द करें
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center gap-6">
+                <h1 className="text-4xl md:text-6xl font-display font-black text-white tracking-tight uppercase leading-none">{profile.displayName}</h1>
+                <button onClick={() => setIsEditing(true)} className="p-2 md:p-3 bg-white/5 rounded-xl text-gray-400 hover:text-white transition-colors border border-white/5"><Edit2 size={18}/></button>
+              </div>
+              <p className="text-gray-400 text-base md:text-lg max-w-xl font-medium italic leading-relaxed">
+                {profile.bio || "No summary provided. Edit your profile to share your journey. (कोई जानकारी उपलब्ध नहीं है।)"}
+              </p>
+              <div className="flex items-center gap-3 text-gray-600 text-[10px] font-bold uppercase tracking-widest">
+                <span>{profile.email}</span>
+                <span className="w-1 h-1 bg-gray-800 rounded-full" />
+                <span>Verified Participant</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard icon={<Trophy className="text-white" />} label="Total Points" secondaryLabel="कुल अंक" value={profile.xp.toLocaleString()} />
+        <StatCard icon={<Flame className="text-white" />} label="Daily Streak" secondaryLabel="दैनिक सिलसिला" value={`${profile.streak || 1} Days`} />
+        {(() => {
+          const rankInfo = getRankFromXP(profile.xp || 0);
+          return <StatCard icon={<Target className="text-white" />} label="Your Rank" secondaryLabel={rankInfo.name} value={`#${rank || '...'}`} />;
+        })()}
+        <StatCard 
+          icon={<Shield className="text-white" />} 
+          label="Member Status" 
+          secondaryLabel="सदस्यता स्तर"
+          value={profile.isAdmin ? 'Admin' : profile.isStrategist ? 'Special' : 'Standard'} 
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {!profile.isStrategist && !profile.isAdmin && (
+          <Card className="lg:col-span-2 bg-white/5 border-white/20">
+            <div className="flex flex-col md:flex-row items-center gap-8 py-4">
+              <div className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center shadow-[0_0_50px_rgba(255,255,255,0.1)] rotate-3">
+                <Zap size={48} className="text-black fill-black" />
+              </div>
+              <div className="flex-1 text-center md:text-left space-y-2">
+                <h2 className="text-3xl font-black text-white italic tracking-tighter uppercase">Join Special Group / विशेष सदस्य बनें</h2>
+                <p className="text-gray-500 text-sm font-medium leading-relaxed max-w-xl">
+                  Unlock the full potential. Access all books, video breakdowns, and special training modules. Move from being a member to a guide.
+                </p>
+                <div className="pt-4 flex flex-wrap gap-4 justify-center md:justify-start">
+                   <button 
+                     onClick={onOpenAscension}
+                     className="px-8 py-3 bg-white text-black text-[10px] font-black uppercase tracking-[0.3em] rounded-xl hover:bg-gray-200 transition-all shadow-xl flex flex-col items-center"
+                   >
+                     <span>Unlock Special Access</span>
+                     <span className="text-[8px] normal-case tracking-normal opacity-60">विशेष एक्सेस लें</span>
+                   </button>
+                   <div className="px-6 py-3 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-gray-700 font-mono">
+                     Special Membership Required
+                   </div>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
+        
+        <Card className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
+              <Zap className="w-4 h-4 text-amber-500" /> My Progress / मेरी प्रगति
+            </h3>
+            <span className="text-[10px] text-amber-500 font-black uppercase tracking-widest">Active / सक्रिय</span>
+          </div>
+          <div className="space-y-8">
+            <ProgressBar progress={(profile.xp % 1000) / 10} label="Current Level Progress" />
+            <ProgressBar progress={profile.completedDays.length} label="100 Day Goal Status" />
+            <ProgressBar progress={Math.min(100, profile.level * 15)} label="Overall Growth" />
+          </div>
+        </Card>
+
+        <Card className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-green-500" /> Recent Integrations
+            </h3>
+            <span className="text-[10px] text-green-500 font-black uppercase tracking-widest">Encrypted</span>
+          </div>
+          <div className="space-y-3">
+             {profile.completedDays.length === 0 ? (
+               <p className="text-gray-500 italic text-sm">No modules integrated into frame yet.</p>
+             ) : (
+               [...profile.completedDays].reverse().slice(0, 5).map(day => (
+                 <div key={day} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
+                   <div className="flex items-center gap-3">
+                     <div className="text-xs font-black text-white/40 font-mono">DAY {day < 10 ? `0${day}` : day}</div>
+                     <div className="text-xs text-white/70 font-bold uppercase tracking-tight">Pattern Recognized</div>
+                   </div>
+                   <div className="text-[10px] text-gray-700 font-mono">AUTHORIZED</div>
+                 </div>
+               ))
+             )}
+          </div>
+        </Card>
+
+        <div className="lg:col-span-2 mt-8">
+          <LeaderboardView currentUserUid={profile.uid} />
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function LeaderboardView({ currentUserUid }: { currentUserUid?: string }) {
+  const [leaders, setLeaders] = useState<UserProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const q = query(collection(db, 'users'), orderBy('xp', 'desc'), limit(10));
+    return onSnapshot(q, (snap) => {
+      setLeaders(snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserProfile)));
+      setLoading(false);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'users/leaderboard'));
+  }, []);
+
+  return (
+    <div className="space-y-6">
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          {[1,2,3].map(i => (
+            <div key={i} className="h-48 bg-white/5 rounded-[32px] animate-pulse" />
+          ))}
+        </div>
+      ) : leaders.length === 0 ? (
+        <NoContent label="Strategists" />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            {leaders.slice(0, 3).map((leader, i) => {
+          const rankInfo = getRankFromXP(leader.xp || 0);
+          return (
+            <motion.div
+              key={leader.uid}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className={`p-6 rounded-[32px] border flex flex-col items-center text-center relative overflow-hidden ${
+                i === 0 ? 'bg-amber-500/10 border-amber-500/30 scale-105 z-10' : 
+                i === 1 ? 'bg-blue-500/10 border-blue-500/30' : 
+                'bg-slate-500/10 border-slate-500/30'
+              }`}
+            >
+              <div className="absolute top-4 right-4 text-2xl font-black italic opacity-20">#{i + 1}</div>
+              <div className="w-20 h-20 rounded-3xl overflow-hidden mb-4 ring-2 ring-white/10 p-0.5">
+                <img src={leader.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${leader.uid}`} className="w-full h-full object-cover" alt="" />
+              </div>
+              <h3 className="font-bold text-white uppercase tracking-tight text-lg leading-tight mb-1">{leader.displayName}</h3>
+              <div className={`text-[10px] px-3 py-0.5 rounded-full font-black uppercase tracking-widest text-white mb-4 ${rankInfo.color}`}>
+                {rankInfo.name}
+              </div>
+              <div className="text-2xl font-display font-black text-white italic">{leader.xp.toLocaleString()}<span className="text-[10px] ml-1 opacity-40 uppercase tracking-widest">xp</span></div>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      <Card className="p-0 border-white/5 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-white/5 border-b border-white/5">
+                <th className="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Rank</th>
+                <th className="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Member</th>
+                <th className="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">XP Points</th>
+                <th className="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leaders.map((leader, index) => {
+                const rankInfo = getRankFromXP(leader.xp || 0);
+                const isCurrent = leader.uid === currentUserUid;
+                return (
+                  <tr key={leader.uid} className={`border-b border-white/5 hover:bg-white/2 transition-colors ${isCurrent ? 'bg-amber-500/5' : ''}`}>
+                    <td className="px-8 py-6">
+                      <span className={`text-sm font-black italic ${index < 3 ? 'text-amber-500' : 'text-gray-600'}`}>#{index + 1}</span>
+                    </td>
+                    <td className="px-8 py-6">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl overflow-hidden ring-1 ring-white/10 shrink-0">
+                          <img src={leader.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${leader.uid}`} className="w-full h-full object-cover" alt="" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-bold text-white uppercase">{leader.displayName}</div>
+                          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{rankInfo.hindiName}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-8 py-6">
+                      <div className="text-sm font-black text-white italic">{leader.xp.toLocaleString()}</div>
+                    </td>
+                    <td className="px-8 py-6">
+                      <div className={`text-[9px] px-3 py-1 rounded-full font-black uppercase tracking-widest text-white inline-block ${rankInfo.color} shadow-lg`}>
+                        {rankInfo.name}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </>
+  )}
+</div>
+  );
+}
+
+function StatCard({ icon, label, secondaryLabel, value }: { icon: React.ReactNode, label: string, secondaryLabel?: string, value: string }) {
+  return (
+    <Card className="flex items-center gap-6 p-6">
+      <div className="p-4 bg-white/5 rounded-2xl border border-white/5">{icon}</div>
+      <div className="flex flex-col items-start leading-tight">
+        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">{label}</div>
+        {secondaryLabel && <div className="text-[9px] text-gray-500 font-medium mb-1">{secondaryLabel}</div>}
+        <div className="text-3xl font-display font-black text-white">{value}</div>
+      </div>
+    </Card>
+  );
+}
+
+function LoadingScreen() {
+  return (
+    <div className="min-h-screen bg-black flex items-center justify-center">
+      <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+        className="w-12 h-12 border-2 border-white/20 border-t-white rounded-full"
+      />
+    </div>
+  );
+}
+
+function LoginScreen({ onLogin }: { onLogin: () => void }) {
+  return (
+    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 md:p-8 relative overflow-hidden font-sans">
+      <div className="absolute inset-0 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] opacity-20" />
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-sm text-center relative z-10 space-y-8 md:space-y-12">
+        <Logo className="w-24 h-24 md:w-32 md:h-32 mx-auto shadow-[0_0_50px_rgba(255,255,255,0.05)]" src={import.meta.env.VITE_APP_LOGO_URL || undefined} />
+        <div className="space-y-4">
+          <h1 className="text-4xl md:text-6xl font-display font-black tracking-tight text-white uppercase">Talk2Society</h1>
+          <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed uppercase tracking-widest">Mind Training & Personal Growth / दिमागी प्रशिक्षण</p>
+        </div>
+        <button onClick={onLogin} className="w-full py-5 md:py-6 bg-white text-black rounded-3xl font-bold uppercase tracking-wider text-[10px] md:text-xs hover:bg-neutral-200 transition-all flex flex-col items-center justify-center gap-2 shadow-2xl">
+          <div className="flex items-center gap-3">
+            <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="google" />
+            <span>Login with Google</span>
+          </div>
+          <span className="text-[10px] opacity-40 font-semibold lowercase tracking-normal">गूगल से लॉग इन करें</span>
+        </button>
+      </motion.div>
+    </div>
+  );
+}
+
+function NoContent({ label }: { label: string }) {
+  return (
+    <div className="py-20 text-center space-y-4">
+      <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto"><Target className="w-8 h-8 text-white/20" /></div>
+      <p className="text-gray-500 text-xs font-bold uppercase tracking-widest">No {label} available in central database</p>
+    </div>
+  );
+}
+
+function VideoCard({ video, onClick, isLocked }: { video: VideoArchive, onClick: () => void, isLocked?: boolean, key?: React.Key }) {
+  return (
+    <div className={`group cursor-pointer ${isLocked ? 'grayscale opacity-60' : ''}`} onClick={isLocked ? undefined : onClick}>
+      <div className="relative aspect-video rounded-[32px] overflow-hidden mb-6 border border-white/5 shadow-2xl transition-all group-hover:scale-[1.02]">
+        <img src={video.thumbnail} alt={video.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+          {isLocked ? (
+            <div className="w-16 h-16 bg-neutral-900 border border-white/10 rounded-full flex items-center justify-center shadow-2xl scale-75 group-hover:scale-100 transition-transform"><Lock className="w-6 h-6 text-gray-400" /></div>
+          ) : (
+            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-2xl scale-75 group-hover:scale-100 transition-transform"><PlayCircle className="w-8 h-8 text-black" /></div>
+          )}
+        </div>
+        {video.isPremium && (
+          <div className="absolute top-4 right-4 px-4 py-1.5 bg-white text-black text-[10px] font-bold uppercase tracking-wider rounded-xl flex items-center gap-2 shadow-lg">
+            Premium <Zap size={10} fill="black" />
+          </div>
+        )}
+      </div>
+      <div className="space-y-4 px-2">
+        <div>
+          <h3 className="text-2xl font-display font-bold text-white mb-2 group-hover:text-amber-500 transition-colors tracking-tight">
+            {video.title}
+          </h3>
+          <div className="flex items-center gap-4 text-xs text-gray-500 font-medium uppercase tracking-wider">
+            <span>{video.views} Views</span>
+            <span>{video.duration}</span>
+          </div>
+        </div>
+        <button className={`w-full py-4 border border-white/10 text-xs font-bold uppercase tracking-wider rounded-2xl transition-all ${isLocked ? 'text-gray-600 bg-white/5 cursor-not-allowed' : 'text-gray-400 group-hover:bg-white group-hover:text-black'}`}>
+          {isLocked ? 'Locked' : 'Watch Now'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function BookCard({ book, onClick, isLocked }: { book: LibraryBook, onClick: () => void, isLocked?: boolean, key?: React.Key }) {
+  return (
+    <div className={`flex flex-col sm:flex-row gap-6 md:gap-8 group cursor-pointer ${isLocked ? 'grayscale opacity-60' : ''}`} onClick={isLocked ? undefined : onClick}>
+      <div className="w-full sm:w-40 h-56 md:h-56 bg-neutral-900 border border-white/5 rounded-3xl shadow-2xl transition-all group-hover:-translate-y-2 flex flex-col p-0 overflow-hidden shrink-0 relative">
+        {book.coverUrl ? (
+          <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 font-display" />
+        ) : (
+          <div className="flex-1 border border-white/5 rounded flex items-center justify-center">
+            <BookOpen className="w-10 h-10 text-white/40" />
+          </div>
+        )}
+        
+        {isLocked && (
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-[2px]">
+            <Lock className="w-10 h-10 text-white/40" />
+          </div>
+        )}
+
+        {book.isPremium && (
+          <div className="absolute top-4 right-4 w-8 h-8 bg-white rounded-xl flex items-center justify-center shadow-xl z-10">
+            <Zap size={12} className="text-black" fill="black" />
+          </div>
+        )}
+      </div>
+      <div className="flex-1 space-y-4 py-2">
+        <div className="flex items-center justify-between">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-white/40">{book.category}</div>
+        </div>
+        <h3 className="text-3xl font-display font-black text-white tracking-tight leading-tight">{book.title}</h3>
+        <p className="text-sm text-gray-500 leading-relaxed line-clamp-4 font-medium italic">"{book.excerpt}"</p>
+        <button className={`pt-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-all flex items-center gap-2 ${isLocked ? 'text-gray-700 border-white/5 cursor-not-allowed' : 'text-white border-white/20 hover:border-white'}`}>
+          {isLocked ? 'Access Restricted' : 'Read Manuscript'} <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PostForm({ onSubmit, user, displayName }: any) {
+  return (
+    <Card className="bg-neutral-900/40 p-6 md:p-8">
+      <div className="flex flex-col sm:flex-row gap-4 md:gap-6">
+        <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0"><User className="text-white/40" /></div>
+        <form onSubmit={(e) => { e.preventDefault(); const input = (e.target as any).content; onSubmit(input.value); input.value = ''; }} className="flex-1 flex flex-col gap-4 md:gap-6">
+          <textarea name="content" placeholder="Share your experience... (अपने अनुभव साझा करें...)" className="w-full bg-white/5 border border-white/5 rounded-[24px] p-4 md:p-6 text-sm focus:outline-none min-h-[100px] md:min-h-[120px] resize-none font-medium placeholder:text-gray-600" />
+          <button className="w-full sm:w-auto self-end px-8 md:px-10 py-3 md:py-4 bg-white text-black text-xs font-bold uppercase tracking-wider rounded-2xl hover:bg-gray-200 transition-all shadow-xl">Post Insight / पोस्ट करें</button>
+        </form>
+      </div>
+    </Card>
+  );
+}
+
+function PostCard({ post, onLike }: { post: CommunityPost, onLike?: () => void, key?: React.Key }) {
+  return (
+    <Card className="p-6 md:p-8 group hover:scale-[1.01] transition-transform">
+      <div className="flex justify-between mb-4 md:mb-6">
+        <div className="flex items-center gap-3 md:gap-4">
+          <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-white/5 flex items-center justify-center text-xs font-bold text-white/40 uppercase border border-white/5 overflow-hidden">
+            {post.authorPhotoURL ? (
+              <img src={post.authorPhotoURL} alt={post.authorName} className="w-full h-full object-cover" />
+            ) : (
+              post.authorName?.charAt(0)
+            )}
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <div className="text-xs md:text-sm font-bold text-white uppercase leading-tight">{post.authorName}</div>
+            <div className="text-[9px] md:text-[10px] text-gray-500 font-bold uppercase tracking-wider leading-tight">Community Member</div>
+          </div>
+        </div>
+      </div>
+      <p className="text-gray-400 text-sm md:text-base leading-relaxed mb-6 md:mb-8 font-medium group-hover:text-white transition-colors">{post.content}</p>
+      <div className="flex gap-4 md:gap-6 border-t border-white/5 pt-4 md:pt-6">
+        <button 
+          onClick={onLike}
+          className="flex items-center gap-3 text-xs font-bold uppercase tracking-wider text-gray-500 hover:text-white transition-all group/like"
+        >
+          <Heart className={`w-5 h-5 transition-all ${post.likes > 0 ? 'fill-white text-white' : 'group-hover/like:scale-125'}`} /> 
+          {post.likes} <span className="hidden sm:inline">Likes</span>
+        </button>
+      </div>
+    </Card>
+  );
+}
+
+function NavItem({ icon, label, secondaryLabel, active, onClick, collapsed }: any) {
+  return (
+    <button onClick={onClick} className={`w-full flex items-center gap-4 p-3.5 rounded-2xl transition-all duration-300 group relative ${active ? 'bg-white/5 text-white shadow-xl shadow-white/5' : 'text-gray-600 hover:text-gray-200 hover:bg-white/[0.02]'}`}>
+      <span className={`${active ? 'text-white scale-110' : 'text-gray-700 group-hover:text-white group-hover:scale-110'} transition-all duration-300`}>{icon}</span>
+      {!collapsed && (
+        <div className="flex flex-col items-start gap-0.5">
+          <span className="text-xs font-black uppercase tracking-widest leading-tight">{label}</span>
+          {secondaryLabel && <span className="text-[10px] font-bold opacity-40 group-hover:opacity-60 leading-tight">{secondaryLabel}</span>}
+        </div>
+      )}
+      {active && <motion.div layoutId="nav-active" className="absolute left-[-1rem] top-1/4 bottom-1/4 w-1 bg-white rounded-r-full shadow-[0_0_10px_#fff]" />}
+    </button>
+  );
+}
+
+function CommunityStat({ label, secondaryLabel, value, icon }: { label: string, secondaryLabel?: string, value: string, icon: React.ReactNode }) {
+  return (
+    <div className="bg-[#0a0a0a] border border-white/5 p-6 rounded-3xl text-center space-y-3 group hover:border-white/20 transition-all flex flex-col items-center">
+      <div className="flex flex-col items-center gap-1.5 text-gray-500 group-hover:text-white transition-colors">
+        <div className="flex items-center gap-2">
+          {icon}
+          <span className="text-[10px] font-bold uppercase tracking-wider leading-tight">{label}</span>
+        </div>
+        {secondaryLabel && <span className="text-[8px] font-bold opacity-40">{secondaryLabel}</span>}
+      </div>
+      <div className="text-3xl font-display font-black text-white">{value}</div>
+    </div>
+  );
+}
+
+function ShopView({ profile }: { profile: UserProfile }) {
+  const [products, setProducts] = useState<ShopProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const q = query(collection(db, 'shop'), orderBy('category', 'asc'));
+    return onSnapshot(q, (snap) => {
+      setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() } as ShopProduct)));
+      setLoading(false);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'shop'));
+  }, []);
+
+  const handleProductClick = async (product: ShopProduct) => {
+    try {
+      if (product.id) {
+        await updateDoc(doc(db, 'shop', product.id), {
+          clicks: increment(1)
+        });
+      }
+    } catch (e) {
+      console.error('Failed to track click:', e);
+    }
+  };
+
+  const defaultProducts: ShopProduct[] = [
+    {
+      id: '1',
+      name: 'The 48 Laws of Power',
+      description: 'The definitive guide to understanding power dynamics in any situation. A must-read for strategic thinkers.',
+      price: '₹499',
+      imageUrl: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=800',
+      affiliateUrl: 'https://amazon.in',
+      platform: 'Amazon',
+      category: 'Power'
+    },
+    {
+      id: '2',
+      name: 'Thinking, Fast and Slow',
+      description: 'Understanding the two systems that drive the way we think. Psychological foundation for master strategists.',
+      price: '₹599',
+      imageUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&q=80&w=800',
+      affiliateUrl: 'https://amazon.in',
+      platform: 'Amazon',
+      category: 'Psychology'
+    }
+  ];
+
+  const displayProducts = products.length > 0 ? products : defaultProducts;
+
+  if (loading) return <LoadingScreen />;
+
+  return (
+    <div className="space-y-16 pb-20">
+      <div className="max-w-2xl space-y-4">
+        <h1 className="text-4xl md:text-6xl font-display font-black text-white tracking-tight uppercase">Strategic <span className="text-gray-500">Shop</span></h1>
+        <p className="text-gray-400 text-base md:text-xl leading-relaxed font-medium">
+          Curated resources for your personal growth. We recommend essential tools from trusted external platforms.
+          (आपके विकास के लिए बेहतरीन संसाधन)
+        </p>
+        <div className="flex items-center gap-2 text-[10px] text-amber-500/60 font-bold uppercase tracking-widest bg-amber-500/5 border border-amber-500/10 w-fit px-3 py-1 rounded-full">
+          <ExternalLink size={10} />
+          <span>Product links will redirect to respective stores</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {displayProducts.map(product => (
+          <div key={product.id} className="group bg-[#0a0a0a] border border-white/5 rounded-[40px] overflow-hidden flex flex-col hover:border-white/20 transition-all duration-500 shadow-2xl">
+            <div className="aspect-[4/3] overflow-hidden bg-neutral-900 relative">
+              <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105" />
+              <div className="absolute top-6 left-6 flex flex-col gap-2">
+                <div className="px-4 py-1.5 bg-black/40 backdrop-blur-md rounded-xl text-[10px] font-bold uppercase tracking-wider text-white border border-white/10">
+                  {product.category}
+                </div>
+                {product.platform && (
+                  <div className="px-4 py-1.5 bg-amber-500 rounded-xl text-[10px] font-black uppercase tracking-wider text-black shadow-2xl">
+                    On {product.platform}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="p-10 flex-1 flex flex-col space-y-6">
+              <div className="space-y-2">
+                <div className="flex justify-between items-start">
+                  <h3 className="text-2xl font-display font-black text-white tracking-tight leading-tight">{product.name}</h3>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-lg font-bold text-amber-500">{product.price}</span>
+                  {product.clicks !== undefined && (
+                    <span className="text-[10px] text-gray-500 font-bold uppercase">{product.clicks} Clicks</span>
+                  )}
+                </div>
+              </div>
+              <p className="text-gray-500 text-sm font-medium leading-relaxed flex-1 italic">
+                {product.description}
+              </p>
+              <a 
+                href={product.affiliateUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                onClick={() => handleProductClick(product)}
+                className="w-full py-5 bg-white text-black text-xs font-bold uppercase tracking-wider rounded-2xl hover:bg-neutral-200 transition-all flex flex-col items-center justify-center gap-1 shadow-xl group-hover:bg-amber-500 group-hover:text-black transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <span>View on {product.platform || 'Store'}</span>
+                  <ExternalLink className="w-4 h-4" />
+                </div>
+                <span className="text-[10px] normal-case tracking-normal opacity-60 font-bold">Respective platform पर देखें</span>
+              </a>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {displayProducts.length === 0 && <NoContent label="Resources" />}
+    </div>
+  );
+}
