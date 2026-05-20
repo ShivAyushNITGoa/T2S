@@ -464,7 +464,20 @@ export default function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabType>('journey');
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    const saved = localStorage.getItem('t2s_active_tab');
+    if (saved) {
+      const validTabs: TabType[] = ['journey', 'archives', 'library', 'community', 'admin', 'profile', 'shop', 'affiliate', 'leaderboard'];
+      if (validTabs.includes(saved as TabType)) {
+        return saved as TabType;
+      }
+    }
+    return 'journey';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('t2s_active_tab', activeTab);
+  }, [activeTab]);
   const [isSidebarOpen, setSidebarOpen] = useState(false); // Default to closed on mobile
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   
