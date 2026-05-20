@@ -31,6 +31,7 @@
         "content": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" },
         "likes": { "type": "integer" },
+        "likedBy": { "type": "array", "items": { "type": "string" }, "description": "Array of user UIDs who liked the post." },
         "isPremium": { "type": "boolean" }
       },
       "required": ["authorId", "content", "createdAt"]

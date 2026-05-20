@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Shield, Flame, PlayCircle, BookOpen, Users, 
-  Trophy, Lock, CheckCircle2, ChevronRight, 
+  Trophy, Lock, CheckCircle2, ChevronRight, ChevronDown, ChevronUp,
   LogOut, Send, Heart, Menu, X, User,
   TrendingUp, Zap, Target, Settings, Edit2, Save,
   ShoppingCart, ArrowLeft, BarChart3, ExternalLink,
@@ -29,6 +29,7 @@ import {
   serverTimestamp,
   increment,
   arrayUnion,
+  arrayRemove,
   limit,
   getCountFromServer,
   where,
@@ -72,6 +73,7 @@ const getLocalDateString = (date: Date = new Date()) => {
 
 const PresenceCalendar = ({ presenceDays, completedDaysCount }: { presenceDays: string[], completedDaysCount: number }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [isMinimized, setIsMinimized] = useState(false);
   
   const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
   const firstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
@@ -105,90 +107,351 @@ const PresenceCalendar = ({ presenceDays, completedDaysCount }: { presenceDays: 
   const todayStr = getLocalDateString();
 
   return (
-    <div className="bg-white/5 border border-white/5 rounded-[32px] p-6 md:p-8 w-full shadow-2xl">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+    <div className="bg-white/5 border border-white/5 rounded-[32px] p-6 md:p-8 w-full shadow-2xl transition-all duration-300">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Target className="w-4 h-4 text-amber-500" />
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Journey Tracker / प्रोग्रेस ट्रैकर</span>
+            <Target className="w-4 h-4 text-amber-500 animate-pulse" />
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Attendance Tracker / दैनिक उपस्थिति</span>
           </div>
           <h2 className="text-2xl font-display font-black text-white uppercase italic tracking-tight">
-            {months[month]} <span className="text-amber-500">{year}</span>
+            Presence <span className="text-amber-500">Calendar</span>
           </h2>
-          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">{hindiMonths[month]} {year}</p>
+          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">दैनिक सक्रियता एवं उपस्थिति रिकॉर्ड</p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button onClick={prevMonth} className="p-3 bg-white/5 border border-white/10 rounded-xl text-white hover:bg-white/10 transition-colors flex items-center justify-center">
-            <ArrowLeft size={16} />
+        <div className="flex items-center gap-3">
+          <button 
+            type="button"
+            onClick={() => setIsMinimized(!isMinimized)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-white/80 hover:bg-white/10 transition-colors"
+          >
+            {isMinimized ? (
+              <>
+                <ChevronDown className="w-3.5 h-3.5 text-amber-500" />
+                <span>Maximize / पूर्ण रूप</span>
+              </>
+            ) : (
+              <>
+                <ChevronUp className="w-3.5 h-3.5 text-amber-500" />
+                <span>Minimize / संक्षिप्त रूप</span>
+              </>
+            )}
           </button>
-          <button onClick={() => setCurrentDate(new Date())} className="px-5 py-3 bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-white uppercase tracking-widest hover:bg-white/10 transition-colors">
-            Today
-          </button>
-          <button onClick={nextMonth} className="p-3 bg-white/5 border border-white/10 rounded-xl text-white hover:bg-white/10 transition-colors rotate-180 flex items-center justify-center">
-             <ArrowLeft size={16} />
-          </button>
+
+          {!isMinimized && (
+            <div className="flex items-center gap-1.5">
+              <button type="button" onClick={prevMonth} className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-white hover:bg-white/10 transition-colors flex items-center justify-center">
+                <ArrowLeft size={14} />
+              </button>
+              <button type="button" onClick={() => setCurrentDate(new Date())} className="px-3.5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-bold text-white uppercase tracking-wider hover:bg-white/10 transition-colors">
+                Today
+              </button>
+              <button type="button" onClick={nextMonth} className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-white hover:bg-white/10 transition-colors rotate-180 flex items-center justify-center">
+                 <ArrowLeft size={14} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-2 md:gap-3">
-        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-          <div key={d} className="text-center text-[10px] font-black text-gray-600 uppercase tracking-widest pb-4 md:pb-6">{d}</div>
-        ))}
-        
-        {days.map((day, idx) => {
-          if (day === null) return <div key={`empty-${idx}`} />;
-          
-          const dateObj = new Date(year, month, day);
-          const dateStr = getLocalDateString(dateObj);
-          const isToday = dateStr === todayStr;
-          const hasPresence = presenceDays.includes(dateStr);
-          
-          return (
-            <motion.div
-              key={day}
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: day * 0.01 }}
-              className={`relative aspect-square rounded-xl md:rounded-2xl border flex flex-col items-center justify-center transition-all group ${
-                hasPresence 
-                  ? 'bg-amber-500/10 border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.05)]' 
-                  : 'bg-white/2 border-white/5 hover:bg-white/5 hover:border-white/10'
-              } ${isToday ? 'ring-2 ring-amber-500 ring-offset-4 ring-offset-black' : ''}`}
-            >
-              <span className={`text-base md:text-xl font-display font-black leading-none ${hasPresence ? 'text-amber-500' : 'text-white/20'}`}>
-                {day}
-              </span>
+      <AnimatePresence mode="wait">
+        {isMinimized ? (
+          <motion.div 
+            key="minimized-presence"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            {/* Weekly Strip: Last 7 days */}
+            <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 md:p-6">
+              <div className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-4">Last 7 Days Consistency / पिछले 7 दिन की निरंतरता</div>
+              <div className="grid grid-cols-7 gap-3">
+                {Array.from({ length: 7 }).map((_, idx) => {
+                  const d = new Date();
+                  d.setDate(d.getDate() - (6 - idx));
+                  const dateStr = getLocalDateString(d);
+                  const isDayToday = dateStr === todayStr;
+                  const isActive = presenceDays.includes(dateStr);
+                  const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+                  
+                  return (
+                    <div key={idx} className="flex flex-col items-center gap-2">
+                      <span className="text-[9px] font-black text-gray-600 uppercase tracking-widest">{dayName}</span>
+                      <div className={`relative w-full aspect-square max-w-[48px] rounded-xl border flex items-center justify-center transition-all ${
+                        isActive 
+                          ? 'bg-amber-500/20 border-amber-500/40 shadow-[0_0_15px_rgba(245,158,11,0.1)]' 
+                          : 'bg-white/2 border-white/5'
+                      } ${isDayToday ? 'ring-1 ring-amber-500' : ''}`}>
+                        <span className={`text-xs font-bold ${isActive ? 'text-amber-500' : 'text-white/25'}`}>{d.getDate()}</span>
+                        {isActive && (
+                          <div className="absolute bottom-1.5 w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,1)]" />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div 
+            key="maximized-presence"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+          >
+            <div className="mb-4">
+              <h3 className="text-sm font-bold text-white/80 uppercase tracking-wider">
+                {months[month]} <span className="text-amber-500">{year}</span>
+              </h3>
+              <p className="text-[9px] text-gray-500 uppercase font-black tracking-widest">{hindiMonths[month]} {year}</p>
+            </div>
+
+            <div className="grid grid-cols-7 gap-2 md:gap-3">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+                <div key={d} className="text-center text-[10px] font-black text-gray-600 uppercase tracking-widest pb-4 md:pb-6">{d}</div>
+              ))}
               
-              {hasPresence && (
-                <motion.div 
-                  layoutId="presence-glow"
-                  className="absolute bottom-2 md:bottom-3 w-1 h-1 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,1)]"
-                />
-              )}
-            </motion.div>
-          );
-        })}
-      </div>
+              {days.map((day, idx) => {
+                if (day === null) return <div key={`empty-${idx}`} />;
+                
+                const dateObj = new Date(year, month, day);
+                const dateStr = getLocalDateString(dateObj);
+                const isToday = dateStr === todayStr;
+                const hasPresence = presenceDays.includes(dateStr);
+                
+                return (
+                  <motion.div
+                    key={day}
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: Math.min(day * 0.005, 0.15) }}
+                    className={`relative aspect-square rounded-xl md:rounded-2xl border flex flex-col items-center justify-center transition-all group ${
+                      hasPresence 
+                        ? 'bg-amber-500/10 border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.05)]' 
+                        : 'bg-white/2 border-white/5 hover:bg-white/5 hover:border-white/10'
+                    } ${isToday ? 'ring-2 ring-amber-500 ring-offset-4 ring-offset-black' : ''}`}
+                  >
+                    <span className={`text-base md:text-xl font-display font-black leading-none ${hasPresence ? 'text-amber-500' : 'text-white/25'}`}>
+                      {day}
+                    </span>
+                    
+                    {hasPresence && (
+                      <motion.div 
+                        layoutId="presence-glow"
+                        className="absolute bottom-2 md:bottom-3 w-1 h-1 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,1)]"
+                      />
+                    )}
+                  </motion.div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      <div className="mt-10 flex flex-wrap gap-6 items-center border-t border-white/5 pt-8">
+      <div className="mt-8 flex flex-wrap gap-6 items-center border-t border-white/5 pt-6">
         <div className="flex items-center gap-3">
-          <div className="w-4 h-4 rounded-lg bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
-          <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Presence / उपस्थिति</span>
+          <div className="w-3.5 h-3.5 rounded-lg bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
+          <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Active / सक्रिय</span>
         </div>
         <div className="flex items-center gap-3">
-          <div className="w-4 h-4 rounded-lg bg-white/2 border border-white/5" />
+          <div className="w-3.5 h-3.5 rounded-lg bg-white/2 border border-white/5" />
           <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Inactivity / निष्क्रिय</span>
         </div>
         <div className="ml-auto flex items-center gap-4">
-          <div className="bg-amber-500/10 border border-amber-500/20 px-4 py-2 rounded-xl text-center min-w-[100px]">
-             <div className="text-[10px] font-black text-amber-500/60 uppercase tracking-widest leading-tight">Presence</div>
-             <div className="text-sm font-bold text-amber-500">{presenceDays.length} Days</div>
+          <div className="bg-amber-500/10 border border-amber-500/20 px-3.5 py-1.5 rounded-xl text-center min-w-[100px]">
+             <div className="text-[9px] font-black text-amber-500/60 uppercase tracking-widest leading-none mb-1">Total Active</div>
+             <div className="text-xs font-bold text-amber-500">{presenceDays.length} Days</div>
           </div>
-          <div className="bg-white/5 border border-white/10 px-4 py-2 rounded-xl text-center min-w-[100px]">
-             <div className="text-[10px] font-black text-white/40 uppercase tracking-widest leading-tight">Journey</div>
-             <div className="text-sm font-bold text-white uppercase">{completedDaysCount}/100</div>
+          <div className="bg-white/5 border border-white/10 px-3.5 py-1.5 rounded-xl text-center min-w-[100px]">
+             <div className="text-[9px] font-black text-white/40 uppercase tracking-widest leading-none mb-1">Milestones</div>
+             <div className="text-xs font-bold text-white uppercase">{completedDaysCount}/100</div>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const JourneyProgressCalendar = ({ completedDays }: { completedDays: number[] }) => {
+  const [isMinimized, setIsMinimized] = useState(false);
+  const totalDaysCount = completedDays.length;
+  const nextTargetDay = totalDaysCount + 1;
+
+  // Determine current phase of 10 days (e.g. 1-10, 11-20, etc.)
+  const currentPhaseIndex = Math.min(Math.floor(totalDaysCount / 10), 9); // max 9 (91-100)
+  const phaseStart = currentPhaseIndex * 10 + 1;
+  const phaseEnd = phaseStart + 9;
+
+  return (
+    <div className="bg-white/5 border border-white/5 rounded-[32px] p-6 md:p-8 w-full shadow-2xl transition-all duration-300">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-6">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <Trophy className="w-4 h-4 text-purple-500 animate-pulse" />
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Sadhana Progress / साधना पूर्णता चक्र</span>
+          </div>
+          <h2 className="text-2xl font-display font-black text-white uppercase italic tracking-tight">
+            100-Day <span className="text-purple-505 font-mono text-purple-500">Milestones</span>
+          </h2>
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">
+            {isMinimized ? `Current Phase: Days ${phaseStart}-${phaseEnd}` : 'Entire 100-Day Path Matrix'}
+          </p>
+        </div>
+
+        <div>
+          <button 
+            type="button"
+            onClick={() => setIsMinimized(!isMinimized)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-white/80 hover:bg-white/10 transition-colors"
+          >
+            {isMinimized ? (
+              <>
+                <ChevronDown className="w-3.5 h-3.5 text-purple-500" />
+                <span>Show All 100 Days / सम्पूर्ण पथ</span>
+              </>
+            ) : (
+              <>
+                <ChevronUp className="w-3.5 h-3.5 text-purple-500" />
+                <span>Show Current Phase / संक्षिप्त दशा</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      <AnimatePresence mode="wait">
+        {isMinimized ? (
+          <motion.div 
+            key="minimized-journey"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            {/* Phase View: 10 Days row */}
+            <div className="bg-purple-505/5 border border-purple-500/10 rounded-2xl p-4 md:p-6 bg-purple-500/5">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest">Active Decade: Days {phaseStart} to {phaseEnd}</span>
+                <span className="text-[10px] font-bold text-purple-500">{Math.min(completedDays.filter(d => d >= phaseStart && d <= phaseEnd).length, 10)} / 10 Complete</span>
+              </div>
+              <div className="grid grid-cols-5 md:grid-cols-10 gap-3">
+                {Array.from({ length: 10 }).map((_, idx) => {
+                  const dayNum = phaseStart + idx;
+                  const isCompleted = completedDays.includes(dayNum);
+                  const isCurrent = dayNum === nextTargetDay;
+                  const isLocked = dayNum > nextTargetDay;
+
+                  return (
+                    <div 
+                      key={dayNum} 
+                      onClick={() => {
+                        if (!isLocked) {
+                          const el = document.getElementById(`module-${dayNum}`);
+                          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                      }}
+                      className={`relative flex flex-col items-center justify-center aspect-square rounded-xl border text-center cursor-pointer transition-all ${
+                        isCompleted 
+                          ? 'bg-purple-500/20 border-purple-500/40 shadow-[0_0_15px_rgba(147,51,234,0.1)]' 
+                          : isCurrent 
+                          ? 'bg-white/10 border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.2)] ring-1 ring-amber-500/50' 
+                          : 'bg-white/2 border-white/5 opacity-40 hover:opacity-100'
+                      }`}
+                      title={`Day ${dayNum}: ${isCompleted ? 'Completed' : isCurrent ? "Today's Target" : 'Locked'}`}
+                    >
+                      <span className={`text-xs font-black font-mono ${isCompleted ? 'text-purple-400' : isCurrent ? 'text-amber-500' : 'text-white/20'}`}>
+                        {dayNum}
+                      </span>
+                      {isCompleted && (
+                        <CheckCircle2 className="w-3 h-3 text-purple-400 absolute bottom-1" />
+                      )}
+                      {isCurrent && (
+                        <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+                      )}
+                      {isLocked && (
+                        <Lock className="w-2.5 h-2.5 text-white/10 absolute bottom-1.5" />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div 
+            key="maximized-journey"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+          >
+            {/* 100-Day Matrix: 10 rows of 10 cols */}
+            <div className="grid grid-cols-10 gap-1.5 md:gap-2.5">
+              {Array.from({ length: 100 }).map((_, idx) => {
+                const dayNum = idx + 1;
+                const isCompleted = completedDays.includes(dayNum);
+                const isCurrent = dayNum === nextTargetDay;
+                const isLocked = dayNum > nextTargetDay;
+
+                return (
+                  <motion.div
+                    key={dayNum}
+                    initial={{ scale: 0.8 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: Math.min(dayNum * 0.002, 0.1) }}
+                    onClick={() => {
+                      if (!isLocked) {
+                        const el = document.getElementById(`module-${dayNum}`);
+                        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      }
+                    }}
+                    className={`relative aspect-square rounded-lg md:rounded-xl border flex items-center justify-center cursor-pointer transition-all ${
+                      isCompleted 
+                        ? 'bg-purple-500/20 border-purple-500/40 shadow-[0_0_10px_rgba(147,51,234,0.05)]' 
+                        : isCurrent 
+                        ? 'bg-white/10 border-amber-500 ring-2 ring-amber-500/30' 
+                        : 'bg-white/2 border-white/5 opacity-50 hover:opacity-100 hover:border-white/20'
+                    }`}
+                    title={`Day ${dayNum}: ${isCompleted ? 'Completed' : isCurrent ? "Today's Target" : 'Locked'}`}
+                  >
+                    <span className={`text-[10px] md:text-sm font-black font-mono leading-none ${isCompleted ? 'text-purple-400' : isCurrent ? 'text-amber-500' : 'text-white/25'}`}>
+                      {dayNum}
+                    </span>
+                    {isCompleted && (
+                      <span className="absolute bottom-0.5 md:bottom-1 w-1 h-1 rounded-full bg-purple-400" />
+                    )}
+                    {isCurrent && (
+                      <span className="absolute top-0.5 right-0.5 w-1 h-1 rounded-full bg-amber-500 animate-ping" />
+                    )}
+                    {isLocked && dayNum % 10 === 0 && (
+                      <div className="absolute top-0.5 right-0.5 text-[6px] opacity-10">🔒</div>
+                    )}
+                  </motion.div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="mt-8 flex flex-wrap gap-6 items-center border-t border-white/5 pt-6">
+        <div className="flex items-center gap-3">
+          <div className="w-3.5 h-3.5 rounded bg-purple-500/30 border border-purple-500/40" />
+          <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Completed / पूर्ण</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="w-3.5 h-3.5 rounded border border-amber-500 bg-white/10 ring-1 ring-amber-500/40" />
+          <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Current / सक्रिय</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="w-3.5 h-3.5 rounded bg-white/2 border border-white/5 opacity-40" />
+          <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Locked / आगामी</span>
+        </div>
+        <div className="ml-auto bg-purple-500/10 border border-purple-500/20 px-4 py-1.5 rounded-full">
+          <span className="text-[9px] font-black text-purple-400 uppercase tracking-widest">Decade Phases Completed: {Math.floor(totalDaysCount / 10)}/10</span>
         </div>
       </div>
     </div>
@@ -483,7 +746,8 @@ export default function App() {
         authorPhotoURL: profile.photoURL || user.photoURL || null,
         content,
         createdAt: serverTimestamp(),
-        likes: 0
+        likes: 0,
+        likedBy: []
       });
 
       await updateDoc(userRef, {
@@ -501,22 +765,51 @@ export default function App() {
     const authorRef = doc(db, 'users', authorId);
     const likerRef = doc(db, 'users', user.uid);
 
+    const postObj = posts.find(p => p.id === postId);
+    const hasLiked = postObj?.likedBy?.includes(user.uid) || false;
+
     try {
-      await updateDoc(postRef, { likes: increment(1) });
-      
-      // Award XP to author (+5)
-      if (authorId !== user.uid) {
-        await updateDoc(authorRef, {
-          xp: increment(5),
+      if (hasLiked) {
+        // Unlike post
+        await updateDoc(postRef, {
+          likes: increment(-1),
+          likedBy: arrayRemove(user.uid)
+        });
+
+        // Award negative XP to author (-5)
+        if (authorId !== user.uid) {
+          await updateDoc(authorRef, {
+            xp: increment(-5),
+            updatedAt: serverTimestamp()
+          });
+        }
+
+        // Award negative XP to liker (-2)
+        await updateDoc(likerRef, {
+          xp: increment(-2),
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        // Like post
+        await updateDoc(postRef, {
+          likes: increment(1),
+          likedBy: arrayUnion(user.uid)
+        });
+
+        // Award XP to author (+5)
+        if (authorId !== user.uid) {
+          await updateDoc(authorRef, {
+            xp: increment(5),
+            updatedAt: serverTimestamp()
+          });
+        }
+
+        // Award XP to liker (+2)
+        await updateDoc(likerRef, {
+          xp: increment(2),
           updatedAt: serverTimestamp()
         });
       }
-
-      // Award XP to liker (+2)
-      await updateDoc(likerRef, {
-        xp: increment(2),
-        updatedAt: serverTimestamp()
-      });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `posts/${postId}`);
     }
@@ -545,7 +838,7 @@ export default function App() {
       
       <aside className={`fixed lg:sticky top-0 h-screen ${isSidebarOpen ? 'w-72 translate-x-0' : 'w-0 lg:w-20 -translate-x-full lg:translate-x-0'} bg-[#0a0a0a] border-r border-white/5 transition-all duration-500 ease-in-out flex flex-col z-50 overflow-hidden`}>
         <div className="h-24 flex items-center px-8 border-b border-white/5 overflow-hidden">
-          <Logo className="min-w-[40px] w-10 h-10" src={import.meta.env.VITE_APP_LOGO_URL || undefined} />
+          <Logo className="min-w-[40px] w-10 h-10" src={import.meta.env.VITE_APP_LOGO_URL || "/logo.png"} />
           <AnimatePresence>
             {isSidebarOpen && (
               <motion.span initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}
@@ -699,9 +992,8 @@ export default function App() {
                 </div>
 
                 {profile && (
-                  <PresenceCalendar 
-                    presenceDays={profile.presenceDays || []} 
-                    completedDaysCount={profile.completedDays?.length || 0}
+                  <JourneyProgressCalendar 
+                    completedDays={profile.completedDays || []} 
                   />
                 )}
 
@@ -801,6 +1093,7 @@ export default function App() {
                       key={post.id} 
                       post={post} 
                       onLike={() => likePost(post.id, post.authorId)} 
+                      currentUserId={user?.uid}
                     />
                   ))}
                 </div>
@@ -1573,7 +1866,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 md:p-8 relative overflow-hidden font-sans">
       <div className="absolute inset-0 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] opacity-20" />
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-sm text-center relative z-10 space-y-8 md:space-y-12">
-        <Logo className="w-24 h-24 md:w-32 md:h-32 mx-auto shadow-[0_0_50px_rgba(255,255,255,0.05)]" src={import.meta.env.VITE_APP_LOGO_URL || undefined} />
+        <Logo className="w-24 h-24 md:w-32 md:h-32 mx-auto shadow-[0_0_50px_rgba(255,255,255,0.05)]" src={import.meta.env.VITE_APP_LOGO_URL || "/logo.png"} />
         <div className="space-y-4">
           <h1 className="text-4xl md:text-6xl font-display font-black tracking-tight text-white uppercase">Talk2Society</h1>
           <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed uppercase tracking-widest">Mind Training & Personal Growth / दिमागी प्रशिक्षण</p>
@@ -1687,7 +1980,8 @@ function PostForm({ onSubmit, user, displayName }: any) {
   );
 }
 
-function PostCard({ post, onLike }: { post: CommunityPost, onLike?: () => void, key?: React.Key }) {
+function PostCard({ post, onLike, currentUserId }: { post: CommunityPost, onLike?: () => void, currentUserId?: string, key?: React.Key }) {
+  const hasLiked = currentUserId && post.likedBy?.includes(currentUserId);
   return (
     <Card className="p-6 md:p-8 group hover:scale-[1.01] transition-transform">
       <div className="flex justify-between mb-4 md:mb-6">
@@ -1709,10 +2003,10 @@ function PostCard({ post, onLike }: { post: CommunityPost, onLike?: () => void, 
       <div className="flex gap-4 md:gap-6 border-t border-white/5 pt-4 md:pt-6">
         <button 
           onClick={onLike}
-          className="flex items-center gap-3 text-xs font-bold uppercase tracking-wider text-gray-500 hover:text-white transition-all group/like"
+          className={`flex items-center gap-3 text-xs font-bold uppercase tracking-wider transition-all group/like ${hasLiked ? 'text-amber-500 hover:text-amber-400' : 'text-gray-500 hover:text-white'}`}
         >
-          <Heart className={`w-5 h-5 transition-all ${post.likes > 0 ? 'fill-white text-white' : 'group-hover/like:scale-125'}`} /> 
-          {post.likes} <span className="hidden sm:inline">Likes</span>
+          <Heart className={`w-5 h-5 transition-all ${hasLiked ? 'fill-amber-500 text-amber-500 scale-110' : 'group-hover/like:scale-125'}`} /> 
+          {post.likes} <span className="hidden sm:inline">{post.likes === 1 ? 'Like' : 'Likes'}</span>
         </button>
       </div>
     </Card>

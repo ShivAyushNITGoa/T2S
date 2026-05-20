@@ -54,6 +54,7 @@ export interface CommunityPost {
   content: string;
   createdAt: any;
   likes: number;
+  likedBy?: string[];
   authorPhotoURL?: string;
   isPremium?: boolean;
 }
