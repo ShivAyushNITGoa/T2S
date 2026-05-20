@@ -735,32 +735,36 @@ export default function App() {
   };
 
   const createPost = async (content: string) => {
-    if (!user || !profile || !content.trim()) return;
+    if (!user || !content.trim()) return;
     try {
       const xpGain = 20;
       const userRef = doc(db, 'users', user.uid);
       
       await addDoc(collection(db, 'posts'), {
         authorId: user.uid,
-        authorName: profile.displayName,
-        authorPhotoURL: profile.photoURL || user.photoURL || null,
+        authorName: profile?.displayName || user.displayName || 'Anonymous User',
+        authorPhotoURL: profile?.photoURL || user.photoURL || null,
         content,
         createdAt: serverTimestamp(),
         likes: 0,
         likedBy: []
       });
 
-      await updateDoc(userRef, {
-        xp: increment(xpGain),
-        updatedAt: serverTimestamp()
-      });
+      try {
+        await updateDoc(userRef, {
+          xp: increment(xpGain),
+          updatedAt: serverTimestamp()
+        });
+      } catch (xpErr) {
+        console.warn("Couldn't reward XP to post creator:", xpErr);
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'posts');
     }
   };
 
   const likePost = async (postId: string, authorId: string) => {
-    if (!user || !profile) return;
+    if (!user) return;
     const postRef = doc(db, 'posts', postId);
     const authorRef = doc(db, 'users', authorId);
     const likerRef = doc(db, 'users', user.uid);
@@ -778,17 +782,25 @@ export default function App() {
 
         // Award negative XP to author (-5)
         if (authorId !== user.uid) {
-          await updateDoc(authorRef, {
-            xp: increment(-5),
-            updatedAt: serverTimestamp()
-          });
+          try {
+            await updateDoc(authorRef, {
+              xp: increment(-5),
+              updatedAt: serverTimestamp()
+            });
+          } catch (authorErr) {
+            console.warn("Couldn't update author XP on unlike:", authorErr);
+          }
         }
 
         // Award negative XP to liker (-2)
-        await updateDoc(likerRef, {
-          xp: increment(-2),
-          updatedAt: serverTimestamp()
-        });
+        try {
+          await updateDoc(likerRef, {
+            xp: increment(-2),
+            updatedAt: serverTimestamp()
+          });
+        } catch (likerErr) {
+          console.warn("Couldn't update liker XP on unlike:", likerErr);
+        }
       } else {
         // Like post
         await updateDoc(postRef, {
@@ -798,17 +810,25 @@ export default function App() {
 
         // Award XP to author (+5)
         if (authorId !== user.uid) {
-          await updateDoc(authorRef, {
-            xp: increment(5),
-            updatedAt: serverTimestamp()
-          });
+          try {
+            await updateDoc(authorRef, {
+              xp: increment(5),
+              updatedAt: serverTimestamp()
+            });
+          } catch (authorErr) {
+            console.warn("Couldn't update author XP on like:", authorErr);
+          }
         }
 
         // Award XP to liker (+2)
-        await updateDoc(likerRef, {
-          xp: increment(2),
-          updatedAt: serverTimestamp()
-        });
+        try {
+          await updateDoc(likerRef, {
+            xp: increment(2),
+            updatedAt: serverTimestamp()
+          });
+        } catch (likerErr) {
+          console.warn("Couldn't update liker XP on like:", likerErr);
+        }
       }
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `posts/${postId}`);

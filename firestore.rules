@@ -42,7 +42,18 @@ service cloud.firestore {
       allow create: if isOwner(userId) && isValidUser(request.resource.data);
       allow update: if (isOwner(userId) && isValidUser(request.resource.data) && (
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['xp', 'level', 'completedDays', 'updatedAt', 'lastLoginAt', 'streak', 'displayName', 'bio', 'photoURL', 'isStrategist', 'presenceDays'])
-      )) || (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isStrategist']));
+      )) || (
+        isSignedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['xp', 'updatedAt']) &&
+        (
+          request.resource.data.xp == resource.data.xp + 5 ||
+          request.resource.data.xp == resource.data.xp - 5 ||
+          request.resource.data.xp == resource.data.xp + 2 ||
+          request.resource.data.xp == resource.data.xp - 2 ||
+          request.resource.data.xp == resource.data.xp + 20 ||
+          request.resource.data.xp == resource.data.xp - 20
+        )
+      ) || (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isStrategist']));
     }
 
     function isValidPost(data) {
