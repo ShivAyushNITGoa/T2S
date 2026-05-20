@@ -9,8 +9,11 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Logo from './components/Logo';
+import GatewayView from './components/GatewayView';
 import { 
   signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider, 
   onAuthStateChanged, 
   signOut,
@@ -37,6 +40,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db, handleFirestoreError, OperationType } from './firebase';
 import { UserProfile, CommunityPost, TabType, JourneyModule, VideoArchive, LibraryBook, ShopProduct } from './types';
+import { RAW_JOURNEY_MODULES } from './journeyData';
 import { RANKS, getRankFromXP, getNextRank } from './constants';
 import AdminPanel from './components/AdminPanel';
 
@@ -71,9 +75,64 @@ const getLocalDateString = (date: Date = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
+const getIstHourAndDateStr = () => {
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+    const parts = formatter.formatToParts(new Date());
+    const getVal = (type: string) => parts.find(p => p.type === type)?.value || '';
+    
+    const year = getVal('year');
+    const month = getVal('month');
+    const day = getVal('day');
+    const hour = parseInt(getVal('hour'), 10);
+    
+    const dateStr = `${year}-${month}-${day}`;
+    return { hour, dateStr };
+  } catch (e) {
+    const now = new Date();
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istDate = new Date(now.getTime() + istOffset);
+    const dateStr = istDate.toISOString().split('T')[0];
+    const hour = istDate.getUTCHours();
+    return { hour, dateStr };
+  }
+};
+
+const getIstDateStrOfDate = (date: Date) => {
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour12: false
+    });
+    const parts = formatter.formatToParts(date);
+    const getVal = (type: string) => parts.find(p => p.type === type)?.value || '';
+    
+    const year = getVal('year');
+    const month = getVal('month');
+    const day = getVal('day');
+    
+    return `${year}-${month}-${day}`;
+  } catch (e) {
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istDate = new Date(date.getTime() + istOffset);
+    return istDate.toISOString().split('T')[0];
+  }
+};
+
 const PresenceCalendar = ({ presenceDays, completedDaysCount }: { presenceDays: string[], completedDaysCount: number }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [isMinimized, setIsMinimized] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(true);
   
   const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
   const firstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
@@ -277,7 +336,7 @@ const PresenceCalendar = ({ presenceDays, completedDaysCount }: { presenceDays: 
 };
 
 const JourneyProgressCalendar = ({ completedDays }: { completedDays: number[] }) => {
-  const [isMinimized, setIsMinimized] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(true);
   const totalDaysCount = completedDays.length;
   const nextTargetDay = totalDaysCount + 1;
 
@@ -464,6 +523,9 @@ export default function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showGateway, setShowGateway] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [quotaError, setQuotaError] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     const saved = localStorage.getItem('t2s_active_tab');
     if (saved) {
@@ -478,6 +540,33 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('t2s_active_tab', activeTab);
   }, [activeTab]);
+
+  useEffect(() => {
+    const handleQuota = (e: any) => {
+      setQuotaError(e.detail || true);
+    };
+    window.addEventListener('firestore-quota', handleQuota);
+    return () => {
+      window.removeEventListener('firestore-quota', handleQuota);
+    };
+  }, []);
+
+  useEffect(() => {
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          console.log("Redirect login successful:", result.user);
+        }
+      })
+      .catch((error) => {
+        console.error("Redirect login failed:", error);
+        if (error.code === 'auth/popup-closed-by-user') {
+          setAuthError('auth/popup-closed-by-user');
+        } else {
+          setAuthError(error.code || error.message);
+        }
+      });
+  }, []);
   const [isSidebarOpen, setSidebarOpen] = useState(false); // Default to closed on mobile
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   
@@ -490,8 +579,20 @@ export default function App() {
 
   const [selectedVideo, setSelectedVideo] = useState<VideoArchive | null>(null);
   const [selectedBook, setSelectedBook] = useState<LibraryBook | null>(null);
+  const [selectedJourneyModule, setSelectedJourneyModule] = useState<JourneyModule | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isAscensionOpen, setIsAscensionOpen] = useState(false);
+
+  const [reflectionText, setReflectionText] = useState("");
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [isReflectionSubmitting, setIsReflectionSubmitting] = useState(false);
+
+  // Trigger reset modal if needed
+  useEffect(() => {
+    if (user && localStorage.getItem('t2s_reset_notice') === 'true') {
+      setIsResetModalOpen(true);
+    }
+  }, [user]);
 
   // Keyboard Shortcuts
   useEffect(() => {
@@ -596,9 +697,31 @@ export default function App() {
             } else if (diffDays > 1) {
               updates.streak = 1;
             }
+
+            // --- TFS Strike System check ---
+            // If the user has completed days, check if they missed 2 consecutive calendar days
+            if (userData.completedDays && userData.completedDays.length > 0) {
+              const lastCompleted = userData.lastCompletedAt?.toDate?.() || null;
+              if (lastCompleted) {
+                const lastCompletedDateOnly = new Date(lastCompleted.getFullYear(), lastCompleted.getMonth(), lastCompleted.getDate());
+                const todayDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const daysSinceLastSuccess = Math.floor((todayDateOnly.getTime() - lastCompletedDateOnly.getTime()) / (1000 * 60 * 60 * 24));
+                
+                if (daysSinceLastSuccess >= 3) {
+                  // Strike System Reset! Missed 2 consecutive full calendar days
+                  updates.completedDays = [];
+                  updates.lastCompletedAt = null;
+                  updates.streak = 0;
+                  localStorage.setItem('t2s_reset_notice', 'true');
+                }
+              } else {
+                // Retroactively set lastCompletedAt to avoid unfair immediate resets for old users
+                updates.lastCompletedAt = serverTimestamp();
+              }
+            }
             
-            // Always update presence if missing, or update streak/lastLogin if 1+ day passed
-            if (updates.presenceDays || diffDays >= 1) {
+            // Always update presence if missing, or update streak/lastLogin if 1+ day passed or when reset triggers
+            if (updates.presenceDays || diffDays >= 1 || updates.completedDays !== undefined) {
               await updateDoc(userRef, updates).catch(err => {
                 handleFirestoreError(err, OperationType.UPDATE, `users/${firebaseUser.uid}`);
                 throw err;
@@ -641,7 +764,20 @@ export default function App() {
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'posts'));
 
     const unsubJourney = onSnapshot(query(collection(db, 'journey'), orderBy('day', 'asc')), (snap) => {
-      setJourneyModules(snap.docs.map(d => ({ id: d.id, ...d.data() } as JourneyModule)));
+      const dbModules = snap.docs.map(d => ({ id: d.id, ...d.data() } as JourneyModule));
+      const merged = Array.from({ length: 100 }, (_, i) => {
+        const d = i + 1;
+        const exists = dbModules.find(m => m.day === d);
+        if (exists) {
+          return exists;
+        }
+        const raw = RAW_JOURNEY_MODULES.find(m => m.day === d)!;
+        return {
+          id: `raw-${d}`,
+          ...raw
+        } as JourneyModule;
+      });
+      setJourneyModules(merged);
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'journey'));
 
     const unsubArchives = onSnapshot(query(collection(db, 'archives'), orderBy('createdAt', 'desc')), (snap) => {
@@ -713,11 +849,30 @@ export default function App() {
   }, [user, profile?.xp]);
 
   const handleLogin = async () => {
+    setAuthError(null);
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
     try {
       await signInWithPopup(auth, provider);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login failed:", error);
+      if (error.code === 'auth/popup-closed-by-user' || error.message?.includes('popup-closed-by-user')) {
+        setAuthError('auth/popup-closed-by-user');
+      } else {
+        setAuthError(error.code || error.message || "Unknown login error");
+      }
+    }
+  };
+
+  const handleLoginWithRedirect = async () => {
+    setAuthError(null);
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    try {
+      await signInWithRedirect(auth, provider);
+    } catch (error: any) {
+      console.error("Redirect login initiate failed:", error);
+      setAuthError(error.code || error.message || "Failed to start redirect login");
     }
   };
 
@@ -725,6 +880,31 @@ export default function App() {
 
   const completeDay = async (day: number) => {
     if (!user || !profile || profile.completedDays.includes(day)) return;
+
+    // --- Limit to one day task per calendar day (Local and IST timezone checks) ---
+    if (profile.lastCompletedAt) {
+      const lastCompleted = profile.lastCompletedAt.toDate ? profile.lastCompletedAt.toDate() : new Date(profile.lastCompletedAt);
+      const lastCompletedLocalStr = getLocalDateString(lastCompleted);
+      const todayLocalStr = getLocalDateString();
+      
+      const lastCompletedIstStr = getIstDateStrOfDate(lastCompleted);
+      const todayIstStr = getIstHourAndDateStr().dateStr;
+      
+      if (lastCompletedLocalStr === todayLocalStr || lastCompletedIstStr === todayIstStr) {
+        alert("🔒 ONE TASK PER DAY / प्रतिदिन केवल एक कार्य:\n\nआप प्रतिदिन केवल एक ही दिन का कार्य पूरा कर सकते हैं। कृपया कल वापस आएं!\n\nYou can only complete one day's task per calendar day. Please return tomorrow!");
+        return;
+      }
+    }
+
+    // --- TFS Element 3: 10:00 PM IST Daily Reflection lock ---
+    const { hour, dateStr } = getIstHourAndDateStr();
+    if (hour >= 22) {
+      const hasReflection = profile.dailyReflections && profile.dailyReflections[dateStr];
+      if (!hasReflection) {
+        alert("🔒 REFLECTION REQUIRED / चिंतन आवश्यक:\n\nभारत के समय के अनुसार रात 10 बजे के बाद, अगला दिन अनलॉक करने के लिए आपको आज का चिंतन साझा करना होगा: \"आज तुमने दुनिया को क्या सिखाया?\"\n\nकृपया पहले आज का चिंतन पूरा करें।");
+        return;
+      }
+    }
 
     const userRef = doc(db, 'users', user.uid);
     const xpGain = 100; // Base XP for completing a day
@@ -738,12 +918,29 @@ export default function App() {
       await updateDoc(userRef, {
         completedDays: arrayUnion(day),
         presenceDays: arrayUnion(getLocalDateString()),
+        lastCompletedAt: serverTimestamp(),
         xp: increment(totalGain),
         level: newLevel,
         updatedAt: serverTimestamp()
       });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+    }
+  };
+
+  const submitDailyReflection = async (content: string) => {
+    if (!user || !profile || !content.trim()) return;
+    const { dateStr } = getIstHourAndDateStr();
+    const userRef = doc(db, 'users', user.uid);
+    
+    try {
+      await updateDoc(userRef, {
+        [`dailyReflections.${dateStr}`]: content.trim(),
+        xp: increment(25), // Reward 25 XP for thoughtful daily reflection
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}/reflection`);
     }
   };
 
@@ -850,10 +1047,34 @@ export default function App() {
 
   if (loading) return <LoadingScreen />;
 
-  if (!user) return <LoginScreen onLogin={handleLogin} />;
+  if (showGateway) {
+    return (
+      <GatewayView 
+        onLogin={handleLogin} 
+        onLoginRedirect={handleLoginWithRedirect}
+        onEnter={() => {
+          if (user) {
+            setShowGateway(false);
+          } else {
+            handleLogin();
+          }
+        }} 
+        isAuthenticated={!!user} 
+        userEmail={user?.email} 
+        authError={authError}
+        setAuthError={setAuthError}
+        quotaError={quotaError}
+      />
+    );
+  }
+
+  if (!user) {
+    setShowGateway(true);
+    return null;
+  }
 
   return (
-    <div className="min-h-screen bg-[#050505] text-gray-200 flex font-sans selection:bg-purple-500/30">
+    <div className="min-h-screen bg-[#000000] text-gray-200 flex font-sans selection:bg-purple-500/30">
       <div className="fixed inset-0 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] opacity-30 z-0" />
       
       {/* Mobile Overlay */}
@@ -864,13 +1085,13 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setSidebarOpen(false)}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 lg:hidden"
           />
         )}
       </AnimatePresence>
       
-      <aside className={`fixed lg:sticky top-0 h-screen ${isSidebarOpen ? 'w-72 translate-x-0' : 'w-0 lg:w-20 -translate-x-full lg:translate-x-0'} bg-[#0a0a0a] border-r border-white/5 transition-all duration-500 ease-in-out flex flex-col z-50 overflow-hidden`}>
-        <div className="h-24 flex items-center px-8 border-b border-white/5 overflow-hidden">
+      <aside className={`fixed lg:sticky top-0 h-screen ${isSidebarOpen ? 'w-72 translate-x-0' : 'w-0 lg:w-20 -translate-x-full lg:translate-x-0'} bg-zinc-950 border-r border-zinc-850 transition-all duration-500 ease-in-out flex flex-col z-50 overflow-hidden`}>
+        <div className="h-24 flex items-center px-8 border-b border-zinc-850 overflow-hidden">
           <Logo className="min-w-[40px] w-10 h-10" src={import.meta.env.VITE_APP_LOGO_URL || "/logo.png"} />
           <AnimatePresence>
             {isSidebarOpen && (
@@ -884,6 +1105,7 @@ export default function App() {
         </div>
 
         <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto scrollbar-hide">
+          <NavItem icon={<Shield className="w-5 h-5 text-amber-500 animate-pulse" />} label="Intel Briefing" secondaryLabel="गोपनीय जानकारी" active={false} onClick={() => setShowGateway(true)} collapsed={!isSidebarOpen} />
           <NavItem icon={<Flame className="w-5 h-5" />} label="100-Day Journey" secondaryLabel="१०० दिन का सफर" active={activeTab === 'journey'} onClick={() => setActiveTab('journey')} collapsed={!isSidebarOpen} />
           <NavItem icon={<PlayCircle className="w-5 h-5" />} label="Video Archives" secondaryLabel="वीडियो लाइब्रेरी" active={activeTab === 'archives'} onClick={() => setActiveTab('archives')} collapsed={!isSidebarOpen} />
           <NavItem icon={<BookOpen className="w-5 h-5" />} label="The Great Library" secondaryLabel="महान पुस्तकालय" active={activeTab === 'library'} onClick={() => setActiveTab('library')} collapsed={!isSidebarOpen} />
@@ -962,27 +1184,162 @@ export default function App() {
         </header>
 
         <section className="flex-1 overflow-y-auto p-6 md:p-12 lg:p-16 max-w-7xl w-full mx-auto">
+          {quotaError && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }} 
+              animate={{ opacity: 1, scale: 1 }} 
+              className="bg-red-500/10 border-2 border-red-500/30 rounded-[24px] p-6 flex flex-col md:flex-row items-center gap-6 shadow-[0_0_30px_rgba(239,68,68,0.15)] relative overflow-hidden mb-8"
+            >
+              <div className="absolute top-0 bottom-0 left-0 w-1.5 bg-red-500" />
+              <div className="w-12 h-12 bg-red-500/15 rounded-full flex items-center justify-center border border-red-500/20 text-2xl shrink-0">
+                🚨
+              </div>
+              <div className="flex-1 space-y-1 text-center md:text-left">
+                <h4 className="text-red-500 font-display font-black text-xs uppercase tracking-widest font-mono">
+                  DATABASE READ LIMIT EXCEEDED / डेटाबेस कोटा समाप्त
+                </h4>
+                <p className="text-white font-bold text-base leading-snug">
+                  The application has hit its Google Firestore free-tier read limits.
+                </p>
+                <p className="text-gray-400 text-xs md:text-sm">
+                  We have automatically activated the **Sovereign offline caching system** so you can continue exploring your content without failure! Admins can resolve this by enabling billing/upgrade in their Firebase project.
+                </p>
+              </div>
+              <a
+                href="https://console.firebase.google.com/project/gen-lang-client-0467831205/firestore/databases/ai-studio-14532041-e5ec-4f1b-b575-758b9a243f26/data?openUpgradeDialog=true"
+                target="_blank"
+                rel="noreferrer"
+                className="bg-red-600 hover:bg-red-700 font-black text-[10px] text-white px-5 py-2.5 rounded-xl uppercase tracking-widest border border-red-500 transition-all shrink-0 font-mono text-center cursor-pointer shadow-md inline-block"
+              >
+                Upgrade Plan / अपग्रेड करें
+              </a>
+            </motion.div>
+          )}
+
           <AnimatePresence mode="wait">
             {activeTab === 'journey' && (
               <motion.div key="journey" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-16">
                 {/* Real-time Journey Calendar */}
-                <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000">
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000 space-y-6">
                   <PresenceCalendar 
                     presenceDays={profile?.presenceDays || []} 
                     completedDaysCount={profile?.completedDays?.length || 0}
                   />
+
+                  {/* TFS Strike System Warning banner */}
+                  {(() => {
+                    if (!profile || !profile.completedDays || profile.completedDays.length === 0) return null;
+                    if (!profile.lastCompletedAt) return null;
+                    
+                    const lastCompleted = profile.lastCompletedAt?.toDate?.() || new Date(profile.lastCompletedAt);
+                    const now = new Date();
+                    const todayDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    const lastCompletedDateOnly = new Date(lastCompleted.getFullYear(), lastCompleted.getMonth(), lastCompleted.getDate());
+                    const daysSinceLastSuccess = Math.floor((todayDateOnly.getTime() - lastCompletedDateOnly.getTime()) / (1000 * 60 * 60 * 24));
+                    
+                    if (daysSinceLastSuccess === 2) {
+                      return (
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-amber-500/10 border-2 border-amber-500/30 rounded-[24px] p-6 flex flex-col md:flex-row items-center gap-6 shadow-[0_0_30px_rgba(245,158,11,0.15)] relative overflow-hidden">
+                          <div className="absolute top-0 bottom-0 left-0 w-1.5 bg-amber-500" />
+                          <div className="w-12 h-12 bg-amber-500/15 rounded-full flex items-center justify-center border border-amber-500/20 text-2xl shrink-0 animate-pulse">
+                            ⚠️
+                          </div>
+                          <div className="flex-1 space-y-1 text-center md:text-left">
+                            <h4 className="text-amber-500 font-display font-black text-xs uppercase tracking-widest font-mono">
+                              1 Strike Active / १ स्ट्राइक सक्रिय!
+                            </h4>
+                            <p className="text-white font-bold text-base leading-snug">
+                              आपने कल टास्क की संकलन (Integrate) नहीं की!
+                            </p>
+                            <p className="text-gray-400 text-xs md:text-sm">
+                              आज का टास्क खत्म करें, नहीं तो आपकी पूरी 100-दिन की प्रगति <span className="text-amber-500 font-bold">शून्य (Day 1)</span> पर रीसेट हो जाएगी।
+                            </p>
+                          </div>
+                          <div className="bg-amber-500/10 px-4 py-1.5 rounded-full text-[9px] font-black text-amber-400 uppercase tracking-widest border border-amber-500/15 animate-pulse shrink-0">
+                            CRITICAL LIFELINE
+                          </div>
+                        </motion.div>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
 
                 {(() => {
                   const nextDay = (profile?.completedDays.length || 0) + 1;
                   const currentModule = journeyModules.find(m => m.day === nextDay) || journeyModules[0];
                   
+                  const { hour: istHour, dateStr: istDateStr } = getIstHourAndDateStr();
+                  const requiresReflection = istHour >= 22 && (!profile?.dailyReflections || !profile.dailyReflections[istDateStr]);
+                  const hasSubmittedReflection = profile?.dailyReflections && profile.dailyReflections[istDateStr];
+
+                  if (requiresReflection) {
+                    return (
+                      <div className="bg-gradient-to-b from-zinc-950 to-[#0a0a0a] border-2 border-amber-500/30 rounded-[32px] md:rounded-[48px] p-6 md:p-12 relative overflow-hidden group shadow-[0_0_50px_rgba(245,158,11,0.12)]">
+                        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500" />
+                        <div className="relative z-10 space-y-6 md:space-y-8">
+                          <div className="flex items-center justify-between flex-wrap gap-4">
+                            <div className="flex items-center gap-4">
+                              <span className="flex h-3 w-3 relative">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 animate-bounce"></span>
+                                <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                              </span>
+                              <span className="text-xs md:text-sm font-black uppercase tracking-widest text-amber-500 font-mono">10:00 PM - The Nightly Council / रात्रि चिंतन</span>
+                            </div>
+                            <span className="text-[10px] font-mono text-white/30 font-bold uppercase tracking-wider bg-white/5 px-3 py-1 rounded-full">{istDateStr} IST</span>
+                          </div>
+                          
+                          <div className="space-y-3">
+                            <h2 className="text-3xl md:text-5xl font-display font-black text-white tracking-tight leading-tight uppercase">
+                              REFLECTION REQUIRED
+                            </h2>
+                            <h3 className="text-xl md:text-3xl font-bold text-amber-400 tracking-tight">चिंतन का सवाल: "आज तुमने दुनिया को क्या सिखाया?"</h3>
+                            <p className="text-gray-400 text-sm md:text-base max-w-2xl leading-relaxed">
+                              भारत के समय के अनुसार रात 10 बज चुके हैं। टॉक2सोसाइटी का नियम है: आज के चिंतन को दर्ज किए बिना आप सफर में आगे नहीं बढ़ सकते।
+                            </p>
+                          </div>
+
+                          <div className="space-y-4 max-w-2xl">
+                            <textarea
+                              value={reflectionText}
+                              onChange={(e) => setReflectionText(e.target.value)}
+                              placeholder="Write your reflection here ... (आज का ज्ञान, सबक या विचार जो आपने किसी को सिखाया या संसार को दिया...)"
+                              className="w-full bg-white/5 border border-white/10 focus:border-amber-500/50 rounded-2xl px-6 py-4 text-sm md:text-base text-white placeholder-gray-650 focus:outline-none focus:ring-1 focus:ring-amber-500/30 h-32 md:h-40 resize-none transition-all font-medium"
+                            />
+                            
+                            <button
+                              disabled={isReflectionSubmitting || !reflectionText.trim()}
+                              onClick={async () => {
+                                if (!reflectionText.trim()) return;
+                                setIsReflectionSubmitting(true);
+                                await submitDailyReflection(reflectionText);
+                                setReflectionText("");
+                                setIsReflectionSubmitting(false);
+                              }}
+                              className="w-full sm:w-auto px-8 md:px-12 py-4 md:py-5 bg-amber-500 hover:bg-amber-400 text-black text-xs md:text-sm font-black uppercase tracking-wider rounded-2xl transition-all flex flex-col items-center gap-1 shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer font-sans"
+                            >
+                              <span>{isReflectionSubmitting ? "Locking in..." : "Lock in Reflection / चिंतन सहेजें"}</span>
+                              <span className="text-[9px] font-bold opacity-60 uppercase tracking-normal normal-case">Unlocks Next Day (+25 XP)</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
                   return (
                     <div className="bg-[#0a0a0a] border border-white/10 rounded-[32px] md:rounded-[48px] p-6 md:p-12 relative overflow-hidden group shadow-2xl">
                       <div className="relative z-10 space-y-6 md:space-y-8">
-                        <div className="flex items-center gap-4">
-                          <div className="w-2.5 h-2.5 bg-white rounded-full animate-pulse" />
-                          <span className="text-xs md:text-sm font-bold uppercase tracking-wider text-white/60">Your Path / आपकी प्रगति</span>
+                        <div className="flex justify-between items-center flex-wrap gap-4">
+                          <div className="flex items-center gap-4">
+                            <div className="w-2.5 h-2.5 bg-white rounded-full animate-pulse" />
+                            <span className="text-xs md:text-sm font-bold uppercase tracking-wider text-white/60">Your Path / आपकी प्रगति</span>
+                          </div>
+                          {hasSubmittedReflection && (
+                            <span className="text-[10px] font-mono font-black uppercase tracking-widest text-green-400 bg-green-500/10 px-3 py-1 rounded-full border border-green-500/20 flex items-center gap-1.5 animate-pulse">
+                              ✓ REFLECTION COMPLETED / चिंतन पूरा हुआ
+                            </span>
+                          )}
                         </div>
                         <h2 className="text-3xl md:text-5xl font-display font-black text-white tracking-tight leading-tight uppercase">
                           TODAY'S GOAL: <span className="text-gray-500">{currentModule?.title || 'Starting Point'}</span>
@@ -1040,20 +1397,41 @@ export default function App() {
                       const finalLocked = journeyLocked || isPremiumLocked;
 
                       return (
-                        <Card key={module.id} id={`module-${module.id}`} className={finalLocked ? 'opacity-40 grayscale pointer-events-none' : ''}>
+                        <Card 
+                          key={module.id} 
+                          id={`module-${module.id}`} 
+                          className={`cursor-pointer transition-all duration-300 relative overflow-hidden group ${finalLocked ? 'opacity-40 grayscale pointer-events-none' : 'hover:border-white/20 hover:bg-white/[0.02]'}`}
+                          onClick={() => {
+                            if (!finalLocked) {
+                              setSelectedJourneyModule(module);
+                            }
+                          }}
+                        >
                           <div className="flex justify-between items-start mb-6">
-                            <span className="text-5xl font-black text-white/5 group-hover:text-purple-500/20 transition-colors duration-500 font-mono">
+                            <span className="text-5xl font-black text-white/5 group-hover:text-amber-500/20 transition-colors duration-500 font-mono">
                               {module.day < 10 ? `0${module.day}` : module.day}
                             </span>
                             {isCompleted ? <CheckCircle2 className="w-5 h-5 text-white" /> : finalLocked ? <Lock className="w-5 h-5 text-gray-700" /> : <ChevronRight className="w-5 h-5 text-white" />}
                           </div>
                           <div className="flex items-center gap-2 mb-2">
-                            <h3 className="text-lg font-bold text-white leading-tight">{module.title}</h3>
+                            <h3 className="text-lg font-bold text-white leading-tight">
+                              {finalLocked ? "🔒 Locked Protocol / लॉक प्रोटोकॉल" : module.title}
+                            </h3>
                             {module.isPremium && <Zap className="w-4 h-4 text-white fill-white shrink-0" />}
                           </div>
-                          <p className="text-xs text-gray-500 leading-relaxed mb-6 h-12 overflow-hidden line-clamp-3">{module.description}</p>
+                          <p className="text-xs text-gray-500 leading-relaxed mb-6 h-12 overflow-hidden line-clamp-3">
+                            {finalLocked 
+                              ? "इस नियम को खोलने के लिए पिछले दिनों के कार्य पूरे करें। / Complete the previous days' protocols to unlock." 
+                              : module.description}
+                          </p>
                           {!finalLocked && !isCompleted && (
-                            <button onClick={() => completeDay(module.day)} className="w-full py-3 bg-white text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-200 transition-all flex flex-col items-center">
+                            <button 
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                completeDay(module.day); 
+                              }} 
+                              className="w-full py-3 bg-white text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-200 transition-all flex flex-col items-center"
+                            >
                               <span className="flex items-center gap-2"><Zap className="w-3 h-3" /> Integrate</span>
                               <span className="text-[8px] normal-case tracking-normal opacity-50">शुरू करें</span>
                             </button>
@@ -1278,6 +1656,7 @@ export default function App() {
             journey={journeyModules} 
             archives={archives} 
             library={library} 
+            profile={profile}
             onSelect={(type, item) => {
               if (type === 'journey') setActiveTab('journey');
               if (type === 'archive') {
@@ -1296,9 +1675,77 @@ export default function App() {
         {isAscensionOpen && (
           <AscensionModal onClose={() => setIsAscensionOpen(false)} profile={profile!} />
         )}
+
+        {selectedJourneyModule && (
+          <JourneyModuleDetailModal 
+            module={selectedJourneyModule} 
+            isCompleted={profile?.completedDays.includes(selectedJourneyModule.day) || false}
+            onClose={() => setSelectedJourneyModule(null)}
+            onIntegrate={async () => {
+              const day = selectedJourneyModule.day;
+              setSelectedJourneyModule(null);
+              await completeDay(day);
+            }}
+          />
+        )}
+
+        {isResetModalOpen && (
+          <StrikeResetModal onClose={() => {
+            localStorage.removeItem('t2s_reset_notice');
+            setIsResetModalOpen(false);
+          }} />
+        )}
       </AnimatePresence>
 
     </div>
+  );
+}
+
+function StrikeResetModal({ onClose }: { onClose: () => void }) {
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }} 
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95 backdrop-blur-md"
+    >
+      <motion.div 
+        initial={{ scale: 0.9, y: 30 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.9, y: 30 }}
+        className="bg-zinc-950 border-2 border-red-500/30 rounded-[32px] md:rounded-[40px] p-8 md:p-12 max-w-xl w-full text-center space-y-8 shadow-[0_0_50px_rgba(239,68,68,0.25)] relative overflow-hidden"
+      >
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-red-600 via-orange-500 to-red-600" />
+        
+        <div className="mx-auto w-24 h-24 bg-red-600/10 rounded-full flex items-center justify-center animate-pulse border border-red-500/20">
+          <span className="text-5xl text-red-500">⚠️</span>
+        </div>
+        
+        <div className="space-y-4">
+          <h2 className="text-3xl md:text-4xl font-display font-black text-red-500 uppercase tracking-tight leading-none">
+            STRIKES LIMIT REACHED !
+          </h2>
+          <h3 className="text-xl md:text-2xl font-bold text-white tracking-tight leading-none">
+            दंड विधान: प्रोग्रेस रीसेट
+          </h3>
+          <p className="text-gray-400 text-sm md:text-base leading-relaxed">
+            आप लगातार 2 दिन टास्क की संकलन (Integrate) करने में असफल रहे। 
+            <br />
+            टॉक2सोसाइटी का नियम अत्यंत सरल और कठोर है: <span className="text-red-400 font-bold">अनुशासनहीनता की कोई जगह नहीं है।</span>
+          </p>
+          <p className="text-slate-500 text-xs md:text-sm italic leading-relaxed">
+            "Your 100-day progress has been wiped out and reset back to Day 1. Every step towards sovereignty must be earned with daily devotion."
+          </p>
+        </div>
+        
+        <button 
+          onClick={onClose}
+          className="w-full py-4 bg-white text-black text-xs md:text-sm font-black uppercase tracking-widest rounded-2xl hover:bg-neutral-200 transition-all shadow-xl font-mono"
+        >
+          I Accept, Start Over / मुझे स्वीकार है, पुनः शुरू करें
+        </button>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -1346,17 +1793,24 @@ function ContentModal({ title, onClose, children, maxWidth = "max-w-5xl" }: { ti
 
 // --- Modals ---
 
-function SearchModal({ onClose, journey, archives, library, onSelect }: { 
+function SearchModal({ onClose, journey, archives, library, onSelect, profile }: { 
   onClose: () => void, 
   journey: JourneyModule[], 
   archives: VideoArchive[], 
   library: LibraryBook[], 
-  onSelect: (type: string, item: any) => void 
+  onSelect: (type: string, item: any) => void,
+  profile: UserProfile | null
 }) {
   const [queryStr, setQueryStr] = useState('');
   
   const results = [
-    ...journey.map(m => ({ ...m, type: 'journey' })),
+    ...journey.filter(m => {
+      const isCompleted = profile?.completedDays?.includes(m.day) || false;
+      const isNext = (profile?.completedDays?.length || 0) + 1 === m.day;
+      const journeyLocked = !isCompleted && !isNext && m.day > 1;
+      const isPremiumLocked = m.isPremium && !profile?.isStrategist && !profile?.isAdmin;
+      return !(journeyLocked || isPremiumLocked);
+    }).map(m => ({ ...m, type: 'journey' })),
     ...archives.map(a => ({ ...a, type: 'archive' })),
     ...library.map(l => ({ ...l, type: 'library' }))
   ].filter(item => {
@@ -1758,6 +2212,43 @@ function ProfileView({ profile, rank, onOpenAscension }: { profile: UserProfile,
           </div>
         </Card>
 
+        {/* TFS Dynamic Wisdom Log / Daily Reflections Timeline */}
+        <Card className="lg:col-span-2 space-y-6">
+          <div className="flex justify-between items-center flex-wrap gap-4">
+            <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-amber-500" /> Wisdom Log / दैनिक चिंतन इतिहास
+            </h3>
+            <span className="text-[10px] text-amber-500 font-mono font-black uppercase tracking-widest bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/10 font-bold">
+              Recorded Thoughts
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto pr-2 scrollbar-hide">
+            {!profile.dailyReflections || Object.keys(profile.dailyReflections).length === 0 ? (
+              <p className="text-gray-500 italic text-sm text-center py-8 col-span-2">
+                No nightly reflections recorded yet. Your wisdom timeline will appear here. (कोई चिंतन उपलब्ध नहीं है।)
+              </p>
+            ) : (
+              Object.entries(profile.dailyReflections)
+                .sort((a, b) => b[0].localeCompare(a[0])) // Sort newest calendar date first
+                .map(([date, reflection]) => (
+                  <div key={date} className="p-4 bg-white/5 border border-white/5 hover:border-white/10 rounded-2xl space-y-3 transition-colors flex flex-col justify-between">
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-400/10 px-2.5 py-0.5 rounded-full border border-amber-500/10">
+                        {date}
+                      </span>
+                      <span className="text-[9px] font-mono font-bold text-white/30 uppercase tracking-[0.15em]">
+                        10:00 PM Council
+                      </span>
+                    </div>
+                    <p className="text-xs md:text-sm text-gray-400 font-medium italic leading-relaxed">
+                      "{reflection}"
+                    </p>
+                  </div>
+                ))
+            )}
+          </div>
+        </Card>
+
         <div className="lg:col-span-2 mt-8">
           <LeaderboardView currentUserUid={profile.uid} />
         </div>
@@ -2048,28 +2539,28 @@ function PostCard({ post, onLike, currentUserId }: { post: CommunityPost, onLike
 
 function NavItem({ icon, label, secondaryLabel, active, onClick, collapsed }: any) {
   return (
-    <button onClick={onClick} className={`w-full flex items-center gap-4 p-3.5 rounded-2xl transition-all duration-300 group relative ${active ? 'bg-white/5 text-white shadow-xl shadow-white/5' : 'text-gray-600 hover:text-gray-200 hover:bg-white/[0.02]'}`}>
-      <span className={`${active ? 'text-white scale-110' : 'text-gray-700 group-hover:text-white group-hover:scale-110'} transition-all duration-300`}>{icon}</span>
+    <button onClick={onClick} className={`w-full flex items-center gap-4 p-3.5 rounded-2xl transition-all duration-300 group relative ${active ? 'bg-zinc-800 text-white shadow-md' : 'text-zinc-300 hover:text-white hover:bg-zinc-900 border border-transparent hover:border-zinc-800'}`}>
+      <span className={`${active ? 'text-white scale-110' : 'text-zinc-400 group-hover:text-white group-hover:scale-110'} transition-all duration-300`}>{icon}</span>
       {!collapsed && (
         <div className="flex flex-col items-start gap-0.5">
           <span className="text-xs font-black uppercase tracking-widest leading-tight">{label}</span>
-          {secondaryLabel && <span className="text-[10px] font-bold opacity-40 group-hover:opacity-60 leading-tight">{secondaryLabel}</span>}
+          {secondaryLabel && <span className="text-[10px] font-black opacity-80 group-hover:opacity-100 leading-tight text-amber-400/90 group-hover:text-amber-400">{secondaryLabel}</span>}
         </div>
       )}
-      {active && <motion.div layoutId="nav-active" className="absolute left-[-1rem] top-1/4 bottom-1/4 w-1 bg-white rounded-r-full shadow-[0_0_10px_#fff]" />}
+      {active && <motion.div layoutId="nav-active" className="absolute left-[-1rem] top-1/4 bottom-1/4 w-1 bg-amber-500 rounded-r-full shadow-[0_0_10px_rgba(245,158,11,0.5)]" />}
     </button>
   );
 }
 
 function CommunityStat({ label, secondaryLabel, value, icon }: { label: string, secondaryLabel?: string, value: string, icon: React.ReactNode }) {
   return (
-    <div className="bg-[#0a0a0a] border border-white/5 p-6 rounded-3xl text-center space-y-3 group hover:border-white/20 transition-all flex flex-col items-center">
-      <div className="flex flex-col items-center gap-1.5 text-gray-500 group-hover:text-white transition-colors">
+    <div className="bg-[#0b0b0b] border border-zinc-800 p-6 rounded-3xl text-center space-y-3 group hover:border-zinc-700 transition-all flex flex-col items-center">
+      <div className="flex flex-col items-center gap-1.5 text-zinc-300 group-hover:text-white transition-colors">
         <div className="flex items-center gap-2">
           {icon}
-          <span className="text-[10px] font-bold uppercase tracking-wider leading-tight">{label}</span>
+          <span className="text-[10px] font-extrabold uppercase tracking-wider leading-tight">{label}</span>
         </div>
-        {secondaryLabel && <span className="text-[8px] font-bold opacity-40">{secondaryLabel}</span>}
+        {secondaryLabel && <span className="text-[8px] font-extrabold text-amber-500/95">{secondaryLabel}</span>}
       </div>
       <div className="text-3xl font-display font-black text-white">{value}</div>
     </div>
@@ -2192,5 +2683,103 @@ function ShopView({ profile }: { profile: UserProfile }) {
 
       {displayProducts.length === 0 && <NoContent label="Resources" />}
     </div>
+  );
+}
+
+interface JourneyModuleDetailModalProps {
+  module: JourneyModule;
+  isCompleted: boolean;
+  onClose: () => void;
+  onIntegrate: () => void;
+}
+
+function JourneyModuleDetailModal({ module, isCompleted, onClose, onIntegrate }: JourneyModuleDetailModalProps) {
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }} 
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md overflow-y-auto"
+    >
+      <motion.div 
+        initial={{ scale: 0.95, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.95, y: 20 }}
+        className="bg-zinc-950 border border-white/10 rounded-[32px] md:rounded-[40px] max-w-2xl w-full text-left p-6 md:p-10 shadow-2xl relative overflow-hidden my-8"
+      >
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500" />
+        
+        <button 
+          onClick={onClose}
+          className="absolute top-6 right-6 p-2 bg-white/5 border border-white/5 hover:border-white/10 rounded-full text-gray-400 hover:text-white transition-all cursor-pointer z-10"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className="space-y-6">
+          <div className="space-y-1.5 pt-4">
+            <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-amber-500 font-mono block">
+              {module.phase || "Phase 1: THE PURGE"}
+            </span>
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-xs font-mono font-black py-0.5 px-2.5 bg-amber-500/10 text-amber-400 rounded-md border border-amber-500/20 shrink-0">
+                DAY {module.day}
+              </span>
+              <h2 className="text-xl md:text-2xl font-display font-black text-white uppercase tracking-tight leading-none">
+                {module.title}
+              </h2>
+            </div>
+          </div>
+
+          <div className="border-t border-white/5 my-4" />
+
+          {/* Command */}
+          <div className="space-y-2">
+            <h4 className="text-[10px] font-mono text-zinc-500 font-black uppercase tracking-widest flex items-center gap-2">
+              <Target className="w-4 h-4 text-amber-500 animate-pulse" /> COMMAND / निर्देश
+            </h4>
+            <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-5 text-white text-sm md:text-base leading-relaxed font-semibold">
+              {module.command || module.description}
+            </div>
+          </div>
+
+          {/* Dark Psychology */}
+          <div className="space-y-2">
+            <h4 className="text-[10px] font-mono text-zinc-500 font-black uppercase tracking-widest flex items-center gap-2">
+              <Shield className="w-4 h-4 text-rose-500" /> DARK PSYCHOLOGY / डार्क साइकोलॉजी (WHY)
+            </h4>
+            <div className="p-5 bg-rose-950/5 border border-rose-500/10 rounded-2xl text-zinc-300 text-xs md:text-sm leading-relaxed font-mono">
+              {module.logic || "The logic for this day is heavily guided by ancient sovereign secrets. Formulate sovereignty in action."}
+            </div>
+          </div>
+
+          <div className="border-t border-white/5 my-4" />
+
+          <div className="flex flex-col sm:flex-row gap-4 pt-2">
+            {!isCompleted ? (
+              <button
+                onClick={onIntegrate}
+                className="flex-1 py-4 bg-white hover:bg-zinc-200 text-black text-xs md:text-sm font-black uppercase tracking-widest rounded-2xl transition-all shadow-xl font-mono flex flex-col items-center justify-center gap-1 cursor-pointer"
+              >
+                <span>Integrate Day {module.day} / संकलन करें</span>
+                <span className="text-[9px] opacity-60 font-medium normal-case font-sans">Marks progress (+100 XP)</span>
+              </button>
+            ) : (
+              <div className="flex-1 py-4 bg-green-500/10 border border-green-500/20 text-green-400 text-xs md:text-sm font-black uppercase tracking-widest rounded-2xl text-center flex flex-col items-center justify-center gap-1">
+                <span>✓ Day Completed / पूरा हो गया</span>
+                <span className="text-[9px] opacity-60 font-medium normal-case font-sans">You have integrated this task.</span>
+              </div>
+            )}
+            
+            <button
+              onClick={onClose}
+              className="px-6 py-4 bg-white/5 hover:bg-white/10 border border-white/5 text-gray-400 hover:text-white text-xs md:text-sm font-black uppercase tracking-widest rounded-2xl transition-all font-mono cursor-pointer"
+            >
+              Close / बंद करें
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }

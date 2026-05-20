@@ -64,6 +64,25 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     path
   }
   console.error('Firestore Error: ', JSON.stringify(errInfo));
+
+  const errorLower = errInfo.error.toLowerCase();
+  const isQuotaError = errorLower.includes('quota') || 
+                       errorLower.includes('limit exceeded') || 
+                       errorLower.includes('resource-exhausted') || 
+                       errorLower.includes('quota_exceeded');
+
+  if (isQuotaError) {
+    if (typeof window !== 'undefined') {
+      try {
+        (window as any).dispatchEvent(new (window as any).CustomEvent('firestore-quota', { detail: errInfo }));
+      } catch (e) {
+        console.error("Failed to dispatch custom firestore-quota event:", e);
+      }
+    }
+    console.warn("Firestore Quota Exceeded detected. Handling gracefully via UI warning and cache fallback, preventing crash.");
+    return;
+  }
+
   throw new Error(JSON.stringify(errInfo));
 }
 

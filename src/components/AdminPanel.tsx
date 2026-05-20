@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { JourneyModule, VideoArchive, LibraryBook, CommunityPost, UserProfile, ShopProduct } from '../types';
+import { RAW_JOURNEY_MODULES } from '../journeyData';
 import { Plus, Edit2, Trash2, X, Save, Film, Book, Map, Zap, ShoppingCart, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -95,20 +96,20 @@ function JourneyManager() {
   };
 
   const seedJourney = async () => {
-    const modules = [
-      { day: 1, title: "The Observer's Frame", description: "Learn to detach from emotional bias and view interactions as raw data points.", isPremium: false },
-      { day: 2, title: "Linguistic Anchoring", description: "Master the subtle art of planting behavioral directives through conversation.", isPremium: false },
-      { day: 3, title: "Identity Shifting", description: "The architecture of personas. How to build and discard identity for strategic gain.", isPremium: true },
-      { day: 4, title: "Cognitive Dissonance", description: "Exploiting the gap between belief and action to steer collective drive.", isPremium: true },
-      { day: 5, title: "Pattern Reciprocity", description: "Systematic triggers for social obligation and loyalty loops.", isPremium: false }
-    ];
     try {
-      for (const m of modules) {
+      setStatus("Seeding all 100 days...");
+      for (const m of RAW_JOURNEY_MODULES) {
         const q = query(collection(db, 'journey'), where('day', '==', m.day));
         const snap = await getDocs(q);
-        if (snap.empty) await addDoc(collection(db, 'journey'), m);
+        if (snap.empty) {
+          await addDoc(collection(db, 'journey'), m);
+        } else {
+          // Keep it up to date
+          const docId = snap.docs[0].id;
+          await updateDoc(doc(db, 'journey', docId), m);
+        }
       }
-      setStatus("Journey Seeded Successfully");
+      setStatus("100-Day Journey Seeded/Updated successfully!");
     } catch (e) {
       handleFirestoreError(e, OperationType.WRITE, 'journey');
     }

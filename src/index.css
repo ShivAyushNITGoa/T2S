@@ -6,14 +6,14 @@
   --font-display: "Outfit", sans-serif;
   --font-mono: ui-monospace, monospace;
   
-  --color-nexus-black: #050505;
-  --color-nexus-gray: #0a0a0a;
+  --color-nexus-black: #000000;
+  --color-nexus-gray: #0d0d0f;
   --color-nexus-accent: #ffffff;
 }
 
 @layer base {
   body {
-    @apply font-sans antialiased bg-[#050505] text-gray-400 selection:bg-white selection:text-black min-h-screen flex flex-col;
+    @apply font-sans antialiased bg-[#000000] text-gray-200 selection:bg-white selection:text-black min-h-screen flex flex-col;
   }
   h1, h2, h3, h4, h5, h6 {
     @apply font-display tracking-tight text-white;

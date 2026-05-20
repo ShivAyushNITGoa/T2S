@@ -3,6 +3,9 @@ export interface JourneyModule {
   day: number;
   title: string;
   description: string;
+  command?: string;
+  logic?: string;
+  phase?: string;
   isPremium?: boolean;
 }
 
@@ -45,6 +48,8 @@ export interface UserProfile {
   referredBy?: string;
   rank?: string;
   rankIndex?: number;
+  lastCompletedAt?: any;
+  dailyReflections?: Record<string, string>;
 }
 
 export interface CommunityPost {

@@ -8,45 +8,45 @@ export interface Rank {
 
 export const RANKS: Rank[] = [
   { 
-    name: 'Recruit', 
-    hindiName: 'रंगरूट', 
+    name: 'Pawn', 
+    hindiName: 'प्यादा (पॉड)', 
     threshold: 0, 
-    color: 'bg-slate-500', 
-    icon: '👤' 
+    color: 'bg-zinc-600 text-white', 
+    icon: '♟️' 
+  },
+  { 
+    name: 'Knight', 
+    hindiName: 'शूरवीर (नाइट)', 
+    threshold: 500, 
+    color: 'bg-indigo-600 text-white', 
+    icon: '♞' 
   },
   { 
     name: 'Strategist', 
-    hindiName: 'रणनीतिकार', 
-    threshold: 500, 
-    color: 'bg-blue-500', 
+    hindiName: 'रणनीतिज्ञ (स्ट्रेटेजिस्ट)', 
+    threshold: 1500, 
+    color: 'bg-violet-600 text-white', 
     icon: '🏹' 
   },
   { 
-    name: 'Elite', 
-    hindiName: 'कुलीन', 
-    threshold: 1500, 
-    color: 'bg-amber-500', 
-    icon: '⚔️' 
-  },
-  { 
     name: 'Commander', 
-    hindiName: 'कमांडर', 
+    hindiName: 'सेनापति (कमांडर)', 
     threshold: 3500, 
-    color: 'bg-emerald-500', 
+    color: 'bg-emerald-600 text-white', 
     icon: '🎖️' 
   },
   { 
-    name: 'Master', 
-    hindiName: 'गुरु', 
+    name: 'Overlord', 
+    hindiName: 'अधिपति (ओवरलॉर्ड)', 
     threshold: 7500, 
-    color: 'bg-violet-600', 
-    icon: '🔮' 
+    color: 'bg-rose-600 text-white', 
+    icon: '🔥' 
   },
   { 
-    name: 'Grandmaster', 
-    hindiName: 'ग्रैंडमास्टर', 
+    name: 'Sovereign', 
+    hindiName: 'सर्वसत्ता शासक (सॉवरेन)', 
     threshold: 15000, 
-    color: 'bg-rose-600', 
+    color: 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black border border-amber-300 font-black shadow-[0_0_15px_rgba(245,158,11,0.4)]', 
     icon: '👑' 
   }
 ];

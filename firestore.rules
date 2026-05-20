@@ -33,6 +33,8 @@ service cloud.firestore {
              (data.get('referredBy', '') is string) &&
              (data.get('isStrategist', false) is bool) &&
              (data.get('lastLoginAt', request.time) is timestamp || data.get('lastLoginAt', null) == null) &&
+             (data.get('lastCompletedAt', request.time) is timestamp || data.get('lastCompletedAt', null) == null) &&
+             (data.get('dailyReflections', {}) is map) &&
              (data.get('updatedAt', request.time) is timestamp);
     }
 
@@ -41,7 +43,7 @@ service cloud.firestore {
       allow list: if isSignedIn();
       allow create: if isOwner(userId) && isValidUser(request.resource.data);
       allow update: if (isOwner(userId) && isValidUser(request.resource.data) && (
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['xp', 'level', 'completedDays', 'updatedAt', 'lastLoginAt', 'streak', 'displayName', 'bio', 'photoURL', 'isStrategist', 'presenceDays'])
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['xp', 'level', 'completedDays', 'updatedAt', 'lastLoginAt', 'streak', 'displayName', 'bio', 'photoURL', 'isStrategist', 'presenceDays', 'lastCompletedAt', 'dailyReflections'])
       )) || (
         isSignedIn() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['xp', 'updatedAt']) &&
