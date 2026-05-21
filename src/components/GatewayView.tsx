@@ -3,29 +3,33 @@ import { motion } from 'motion/react';
 import { 
   Shield, Zap, TrendingUp, BookOpen, Terminal, Users, Target, 
   ChevronRight, Lock, Eye, Award, Globe, FileText, ArrowRight,
-  Sparkles, HelpCircle, AlertTriangle
+  Sparkles, HelpCircle, AlertTriangle, ShoppingCart
 } from 'lucide-react';
 
 interface GatewayViewProps {
   onLogin: () => void;
   onLoginRedirect?: () => void;
   onEnter: () => void;
+  onEnterWithTab?: (tab: 'shop' | 'journey') => void;
   isAuthenticated: boolean;
   userEmail?: string | null;
   authError?: string | null;
   setAuthError?: (err: string | null) => void;
   quotaError?: any;
+  onLogout?: () => void;
 }
 
 export default function GatewayView({ 
   onLogin, 
   onLoginRedirect, 
   onEnter, 
+  onEnterWithTab,
   isAuthenticated, 
   userEmail,
   authError,
   setAuthError,
-  quotaError
+  quotaError,
+  onLogout
 }: GatewayViewProps) {
   const [activeTab, setActiveTab] = useState<'briefing' | 'philosophy' | 'pillars'>('briefing');
 
@@ -39,9 +43,12 @@ export default function GatewayView({
       {/* Decorative Top Bar */}
       <div className="sticky top-0 z-50 bg-black/90 backdrop-blur-md border-b border-zinc-800 py-4 px-6 md:px-12 flex justify-between items-center transition-all">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-600 to-yellow-400 flex items-center justify-center font-mono font-black text-black text-sm shadow-[0_0_20px_rgba(245,158,11,0.3)]">
-            T2S
-          </div>
+          <img 
+            src="/logo.png" 
+            className="w-10 h-10 object-cover rounded-full border border-zinc-800 shadow-[0_0_20px_rgba(245,158,11,0.25)]" 
+            alt="Talk2Society Logo" 
+            referrerPolicy="no-referrer"
+          />
           <div>
             <span className="font-display font-black text-sm tracking-tight text-white uppercase block leading-none">Talk2Society</span>
             <span className="text-[10px] font-mono text-amber-400 font-black uppercase tracking-widest block mt-0.5">Sovereign Intel Gate</span>
@@ -49,13 +56,34 @@ export default function GatewayView({
         </div>
 
         <div className="flex items-center gap-4">
+          {onEnterWithTab && (
+            <button
+              onClick={() => onEnterWithTab('shop')}
+              className="px-3 md:px-4 py-2 bg-amber-500/10 hover:bg-amber-500 text-amber-300 hover:text-black border border-amber-500/30 text-[10px] font-mono font-black uppercase tracking-widest rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
+            >
+              <ShoppingCart className="w-3.5 h-3.5" /> <span><span className="hidden sm:inline">STRATEGIC </span>SHOP / स्टोर</span>
+            </button>
+          )}
+
           {isAuthenticated ? (
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-zinc-900 border border-zinc-700 rounded-full">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-              <span className="text-[10px] font-mono text-zinc-200 font-semibold max-w-[120px] truncate">{userEmail}</span>
-            </div>
+            <button 
+              onClick={onLogout}
+              title="Click to Logout / लॉगआउट करने के लिए क्लिक करें"
+              className="hidden sm:flex items-center gap-2 px-3 py-1 bg-zinc-900 hover:bg-red-950/40 border border-zinc-700 hover:border-red-500/30 rounded-full transition-all cursor-pointer group"
+            >
+              <div className="w-1.5 h-1.5 rounded-full bg-green-400 group-hover:bg-red-500 animate-pulse transition-colors" />
+              <span className="text-[10px] font-mono text-zinc-200 group-hover:text-red-400 font-semibold max-w-[150px] truncate transition-colors">
+                {userEmail} <span className="opacity-0 group-hover:opacity-100 group-hover:inline-block ml-1 text-red-400">(Logout)</span>
+              </span>
+            </button>
           ) : (
-            <span className="hidden sm:inline text-[10px] font-mono text-zinc-300 uppercase tracking-widest font-black">SYSTEM_UNLOCKED: FALSE</span>
+            <button 
+              onClick={onLogin}
+              title="Click to Login / लॉगिन करने के लिए क्लिक करें"
+              className="hidden sm:inline-block text-[10px] bg-zinc-900 border border-zinc-700 px-3 py-1 rounded-full font-mono text-zinc-400 hover:text-amber-400 hover:border-amber-500/30 uppercase tracking-widest font-black transition-all cursor-pointer"
+            >
+              SYSTEM_UNLOCKED: FALSE (Login)
+            </button>
           )}
           
           <button 
@@ -70,6 +98,21 @@ export default function GatewayView({
       {/* Hero Section */}
       <div className="relative max-w-7xl mx-auto px-4 md:px-8 pt-12 md:pt-20 pb-24 z-10 space-y-16">
         <div className="text-center max-w-4xl mx-auto space-y-6">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex justify-center pb-2"
+          >
+            <div className="relative p-1 bg-gradient-to-tr from-amber-600 to-yellow-400 rounded-full shadow-[0_0_55px_rgba(245,158,11,0.3)]">
+              <img 
+                src="/logo.png" 
+                className="w-24 h-24 md:w-28 md:h-28 object-cover rounded-full bg-black" 
+                alt="Talk2Society Sovereign Emblem" 
+                referrerPolicy="no-referrer"
+              />
+            </div>
+          </motion.div>
+
           <motion.div 
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
@@ -127,10 +170,19 @@ export default function GatewayView({
                 <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
               </button>
             )}
+
+            {onEnterWithTab && (
+              <button
+                onClick={() => onEnterWithTab('shop')}
+                className="w-full sm:w-auto px-6 py-5 border border-amber-500/40 hover:border-amber-500 bg-amber-500/5 hover:bg-amber-500/10 text-amber-300 text-xs font-mono font-black uppercase tracking-widest rounded-2xl transition-all shadow-md hover:scale-[1.03] flex items-center justify-center gap-3 cursor-pointer"
+              >
+                <ShoppingCart className="w-4 h-4 text-amber-400" /> Strategic Shop / सामरिक स्टोर
+              </button>
+            )}
             
             <a 
               href="#intel-deck"
-              className="px-6 py-4 border border-zinc-700 hover:border-zinc-600 bg-zinc-900 text-xs font-mono font-bold uppercase tracking-widest rounded-2xl text-zinc-200 hover:text-white transition-all flex items-center gap-2"
+              className="w-full sm:w-auto px-6 py-5 border border-zinc-700 hover:border-zinc-600 bg-zinc-900 text-xs font-mono font-bold uppercase tracking-widest rounded-2xl text-zinc-200 hover:text-white transition-all flex items-center justify-center gap-2"
             >
               <Terminal className="w-4 h-4" /> Scroll to Dossier / दस्तावेज़ स्क्रॉल करें
             </a>
@@ -212,52 +264,8 @@ export default function GatewayView({
 
         {/* Dynamic Bento Stats Grid & Navigation */}
         <div id="intel-deck" className="border-t border-zinc-800 pt-12">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             
-            {/* Core Identity Card */}
-            <motion.div 
-              whileHover={{ y: -5 }}
-              className="bg-zinc-900 border border-zinc-750 rounded-3xl p-6 md:p-8 space-y-6 relative overflow-hidden"
-            >
-              
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-2xl">
-                  <Shield className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-white uppercase tracking-tight">Core Identity</h3>
-                  <span className="text-xs font-bold text-zinc-300 font-mono">ब्रांड की पहचान</span>
-                </div>
-              </div>
-
-              <div className="space-y-4 pt-2 font-mono text-sm border-t border-zinc-800">
-                <div className="flex justify-between py-1.5 border-b border-zinc-800/60">
-                  <span className="text-zinc-400 font-bold">NAME:</span>
-                  <span className="text-white font-black">Talk2Society</span>
-                </div>
-                <div className="flex justify-between py-1.5 border-b border-zinc-800/60">
-                  <span className="text-zinc-400 font-bold">ARCHITECT:</span>
-                  <span className="text-white font-black">A. K. Chandradipti</span>
-                </div>
-                <div className="space-y-1 py-1.5 border-b border-zinc-800/60">
-                  <span className="text-zinc-400 font-bold block">PHILOSOPHY:</span>
-                  <span className="text-amber-300 font-black block text-sm leading-relaxed">
-                    Machiavellianism, Jungian Shadow, Chanakya Niti
-                  </span>
-                </div>
-                <div className="space-y-1 py-1.5 border-b border-zinc-800/60">
-                  <span className="text-zinc-400 font-bold block">MISSION:</span>
-                  <p className="text-zinc-200 font-semibold text-xs leading-relaxed">
-                    भीड़ (Prey) को तोड़कर उन्हें स्वतंत्र संप्रभु (Sovereign Hunters) में बदलना।
-                  </p>
-                </div>
-                <div className="flex justify-between py-1.5">
-                  <span className="text-zinc-400 font-bold">TONE:</span>
-                  <span className="text-amber-400 font-black text-xs uppercase">Cold & Analytical HINGLISH</span>
-                </div>
-              </div>
-            </motion.div>
-
             {/* Digital Front (YouTube) */}
             <motion.div 
               whileHover={{ y: -5 }}
@@ -290,43 +298,50 @@ export default function GatewayView({
               </div>
             </motion.div>
 
-            {/* The Elite Funnel */}
+            {/* Strategic Shop Bento Card */}
             <motion.div 
               whileHover={{ y: -5 }}
-              className="bg-zinc-900 border border-zinc-750 rounded-3xl p-6 md:p-8 space-y-6 relative overflow-hidden md:col-span-2 lg:col-span-1"
+              className="bg-zinc-900 border border-amber-500/20 hover:border-amber-500/40 rounded-3xl p-6 md:p-8 space-y-6 relative overflow-hidden flex flex-col justify-between"
             >
-
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-purple-500/10 border border-purple-500/30 text-purple-400 rounded-2xl">
-                  <TrendingUp className="w-6 h-6" />
+              <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full blur-2xl pointer-events-none" />
+              
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-2xl">
+                    <ShoppingCart className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-white uppercase tracking-tight">Strategic Shop</h3>
+                    <span className="text-xs font-bold text-zinc-300 font-mono">सामरिक स्टोर और हथियार</span>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-black text-white uppercase tracking-tight">The Elite Funnel</h3>
-                  <span className="text-xs font-bold text-zinc-300 font-mono">नेक्सस और शैडो फाइल्स</span>
+
+                <div className="space-y-2.5 pt-2 border-t border-zinc-800 text-xs font-mono">
+                  <span className="text-[10px] text-zinc-400 font-black uppercase tracking-widest block">Core Weapons / मुख्य उत्पाद:</span>
+                  <div className="space-y-1.5 text-zinc-200">
+                    <div className="flex justify-between items-center bg-zinc-950/50 p-2 rounded-lg border border-zinc-805">
+                      <span className="font-bold">📚 The 48 Laws Of Power</span>
+                      <span className="text-amber-400 font-black">500 XP</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-zinc-950/50 p-2 rounded-lg border border-zinc-805">
+                      <span className="font-bold">🎭 Machiavellian Guide</span>
+                      <span className="text-amber-400 font-black">800 XP</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-zinc-950/50 p-2 rounded-lg border border-zinc-805">
+                      <span className="font-bold">🧠 Cognitive Defense Shield</span>
+                      <span className="text-amber-400 font-black">1200 XP</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-4 pt-2 border-t border-zinc-800">
-                <div className="relative pl-6 pb-4 border-l border-zinc-700">
-                  <div className="absolute -left-1.5 top-1 w-3 h-3 rounded-full bg-white border border-black" />
-                  <span className="text-[10px] font-mono font-black text-white bg-zinc-800 border border-zinc-700 px-2 py-0.5 rounded uppercase tracking-wider">THE HOOK / YouTube Strategy</span>
-                  <h4 className="text-sm font-black text-white uppercase mt-1">THE HOOK / YouTube Strategy</h4>
-                  <p className="text-xs text-zinc-300 font-semibold mt-0.5">आकर्षण और प्रवेश।</p>
-                </div>
-
-                <div className="relative pl-6 pb-4 border-l border-zinc-700">
-                  <div className="absolute -left-1.5 top-1 w-3 h-3 rounded-full bg-amber-500 border border-black" />
-                  <span className="text-[10px] font-mono font-black text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded uppercase tracking-wider">THE TRAINING / Hunter Nexus</span>
-                  <h4 className="text-sm font-black text-white uppercase mt-1">THE TRAINING / Hunter Nexus (Free)</h4>
-                  <p className="text-xs text-zinc-300 font-semibold mt-0.5">१०० दिन की ट्रेनिंग और ५ कोर किताबें।</p>
-                </div>
-
-                <div className="relative pl-6">
-                  <div className="absolute -left-1.5 top-1 w-3 h-3 rounded-full bg-purple-500 border border-black" />
-                  <span className="text-[10px] font-mono font-black text-purple-300 bg-purple-500/20 px-2 py-0.5 rounded uppercase tracking-wider">THE MASTERY / Shadow Files</span>
-                  <h4 className="text-sm font-black text-white uppercase mt-1">THE MASTERY / Shadow Files (Premium)</h4>
-                  <p className="text-xs text-zinc-300 font-bold mt-0.5">वास्तविक दुनिया के युद्धों का डिकोडिंग और ऑन-डिमांड रणनीतियाँ।</p>
-                </div>
+              <div className="pt-4">
+                <button
+                  onClick={() => onEnterWithTab?.('shop')}
+                  className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-black font-mono font-black text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 font-bold"
+                >
+                  <ShoppingCart className="w-4 h-4" /> Enter Store / स्टोर में प्रवेश
+                </button>
               </div>
             </motion.div>
 

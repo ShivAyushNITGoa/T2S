@@ -1059,11 +1059,20 @@ export default function App() {
             handleLogin();
           }
         }} 
+        onEnterWithTab={(tab) => {
+          setActiveTab(tab);
+          if (user) {
+            setShowGateway(false);
+          } else {
+            handleLogin();
+          }
+        }}
         isAuthenticated={!!user} 
         userEmail={user?.email} 
         authError={authError}
         setAuthError={setAuthError}
         quotaError={quotaError}
+        onLogout={handleLogout}
       />
     );
   }
@@ -1106,12 +1115,12 @@ export default function App() {
 
         <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto scrollbar-hide">
           <NavItem icon={<Shield className="w-5 h-5 text-amber-500 animate-pulse" />} label="Intel Briefing" secondaryLabel="गोपनीय जानकारी" active={false} onClick={() => setShowGateway(true)} collapsed={!isSidebarOpen} />
+          <NavItem icon={<ShoppingCart className="w-5 h-5" />} label="Strategic Shop" secondaryLabel="रणनीतिक दुकान" active={activeTab === 'shop'} onClick={() => setActiveTab('shop')} collapsed={!isSidebarOpen} />
           <NavItem icon={<Flame className="w-5 h-5" />} label="100-Day Journey" secondaryLabel="१०० दिन का सफर" active={activeTab === 'journey'} onClick={() => setActiveTab('journey')} collapsed={!isSidebarOpen} />
           <NavItem icon={<PlayCircle className="w-5 h-5" />} label="Video Archives" secondaryLabel="वीडियो लाइब्रेरी" active={activeTab === 'archives'} onClick={() => setActiveTab('archives')} collapsed={!isSidebarOpen} />
           <NavItem icon={<BookOpen className="w-5 h-5" />} label="The Great Library" secondaryLabel="महान पुस्तकालय" active={activeTab === 'library'} onClick={() => setActiveTab('library')} collapsed={!isSidebarOpen} />
           <NavItem icon={<Users className="w-5 h-5" />} label="Community" secondaryLabel="समुदाय" active={activeTab === 'community'} onClick={() => setActiveTab('community')} collapsed={!isSidebarOpen} />
           <NavItem icon={<Trophy className="w-5 h-5" />} label="Leaderboard" secondaryLabel="लीडरबोर्ड" active={activeTab === 'leaderboard'} onClick={() => setActiveTab('leaderboard')} collapsed={!isSidebarOpen} />
-          <NavItem icon={<ShoppingCart className="w-5 h-5" />} label="Strategic Shop" secondaryLabel="रणनीतिक दुकान" active={activeTab === 'shop'} onClick={() => setActiveTab('shop')} collapsed={!isSidebarOpen} />
           <NavItem icon={<User className="w-5 h-5" />} label="Profile Hub" secondaryLabel="प्रोफ़ाइल हब" active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} collapsed={!isSidebarOpen} />
           
           {profile?.isAdmin && (
@@ -1138,7 +1147,7 @@ export default function App() {
                       <div className="text-[8px] text-white/30 font-bold uppercase tracking-wider mb-1">
                         {profile.isAdmin ? 'Admin' : profile.isStrategist ? 'Special Member' : currentRank.hindiName}
                       </div>
-                      <div className="text-base font-bold text-white capitalize">{profile.displayName.split(' ')[0]}</div>
+                      <div className="text-base font-bold text-white capitalize">{(profile.displayName || 'Anonymous').split(' ')[0]}</div>
                     </div>
                     <div className="text-right">
                       <div className="text-xl font-bold font-mono leading-none">{profile.xp}</div>
@@ -1997,10 +2006,18 @@ function AscensionModal({ onClose, profile }: { onClose: () => void, profile: Us
 
 function ProfileView({ profile, rank, onOpenAscension }: { profile: UserProfile, rank: number | null, onOpenAscension: () => void }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [newName, setNewName] = useState(profile.displayName);
+  const [newName, setNewName] = useState(profile.displayName || "Anonymous User");
   const [newBio, setNewBio] = useState(profile.bio || "");
   const [newPhotoURL, setNewPhotoURL] = useState(profile.photoURL || "");
   const [isUploading, setIsUploading] = useState(false);
+
+  useEffect(() => {
+    if (!isEditing) {
+      setNewName(profile.displayName || "Anonymous User");
+      setNewBio(profile.bio || "");
+      setNewPhotoURL(profile.photoURL || "");
+    }
+  }, [profile, isEditing]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -2183,8 +2200,8 @@ function ProfileView({ profile, rank, onOpenAscension }: { profile: UserProfile,
           </div>
           <div className="space-y-8">
             <ProgressBar progress={(profile.xp % 1000) / 10} label="Current Level Progress" />
-            <ProgressBar progress={profile.completedDays.length} label="100 Day Goal Status" />
-            <ProgressBar progress={Math.min(100, profile.level * 15)} label="Overall Growth" />
+            <ProgressBar progress={(profile.completedDays || []).length} label="100 Day Goal Status" />
+            <ProgressBar progress={Math.min(100, (profile.level || 1) * 15)} label="Overall Growth" />
           </div>
         </Card>
 
@@ -2196,10 +2213,10 @@ function ProfileView({ profile, rank, onOpenAscension }: { profile: UserProfile,
             <span className="text-[10px] text-green-500 font-black uppercase tracking-widest">Encrypted</span>
           </div>
           <div className="space-y-3">
-             {profile.completedDays.length === 0 ? (
+             {(!profile.completedDays || profile.completedDays.length === 0) ? (
                <p className="text-gray-500 italic text-sm">No modules integrated into frame yet.</p>
              ) : (
-               [...profile.completedDays].reverse().slice(0, 5).map(day => (
+               [...(profile.completedDays || [])].reverse().slice(0, 5).map(day => (
                  <div key={day} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
                    <div className="flex items-center gap-3">
                      <div className="text-xs font-black text-white/40 font-mono">DAY {day < 10 ? `0${day}` : day}</div>
@@ -2304,7 +2321,7 @@ function LeaderboardView({ currentUserUid }: { currentUserUid?: string }) {
               <div className={`text-[10px] px-3 py-0.5 rounded-full font-black uppercase tracking-widest text-white mb-4 ${rankInfo.color}`}>
                 {rankInfo.name}
               </div>
-              <div className="text-2xl font-display font-black text-white italic">{leader.xp.toLocaleString()}<span className="text-[10px] ml-1 opacity-40 uppercase tracking-widest">xp</span></div>
+              <div className="text-2xl font-display font-black text-white italic">{(leader.xp || 0).toLocaleString()}<span className="text-[10px] ml-1 opacity-40 uppercase tracking-widest">xp</span></div>
             </motion.div>
           );
         })}
@@ -2342,7 +2359,7 @@ function LeaderboardView({ currentUserUid }: { currentUserUid?: string }) {
                       </div>
                     </td>
                     <td className="px-8 py-6">
-                      <div className="text-sm font-black text-white italic">{leader.xp.toLocaleString()}</div>
+                      <div className="text-sm font-black text-white italic">{(leader.xp || 0).toLocaleString()}</div>
                     </td>
                     <td className="px-8 py-6">
                       <div className={`text-[9px] px-3 py-1 rounded-full font-black uppercase tracking-widest text-white inline-block ${rankInfo.color} shadow-lg`}>
