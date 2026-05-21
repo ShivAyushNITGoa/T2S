@@ -44,6 +44,11 @@ export interface UserProfile {
   streak?: number;
   isAdmin?: boolean;
   isStrategist?: boolean;
+  premiumRequestStatus?: 'pending' | 'approved' | 'denied';
+  premiumRequestPlan?: 'sovereign' | 'elite';
+  premiumRequestPaymentMethod?: 'card' | 'upi';
+  premiumRequestDetails?: string;
+  premiumRequestDate?: any;
   bio?: string;
   referredBy?: string;
   rank?: string;

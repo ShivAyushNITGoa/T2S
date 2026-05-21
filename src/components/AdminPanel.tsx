@@ -15,7 +15,7 @@ import {
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { JourneyModule, VideoArchive, LibraryBook, CommunityPost, UserProfile, ShopProduct } from '../types';
 import { RAW_JOURNEY_MODULES } from '../journeyData';
-import { Plus, Edit2, Trash2, X, Save, Film, Book, Map, Zap, ShoppingCart, ArrowLeft } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, Film, Book, Map, Zap, ShoppingCart, ArrowLeft, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function AdminPanel() {
@@ -633,11 +633,32 @@ function PostModerator() {
 function UserManager() {
   const [items, setItems] = useState<UserProfile[]>([]);
   useEffect(() => {
-    // Note: This requires an index or just limited list if many users exist.
     return onSnapshot(collection(db, 'users'), (snap) => {
       setItems(snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserProfile)));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'users'));
   }, []);
+
+  const handleApprove = async (uid: string) => {
+    try {
+      await updateDoc(doc(db, 'users', uid), {
+        isStrategist: true,
+        premiumRequestStatus: 'approved'
+      });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `users/${uid}`);
+    }
+  };
+
+  const handleDecline = async (uid: string) => {
+    try {
+      await updateDoc(doc(db, 'users', uid), {
+        isStrategist: false,
+        premiumRequestStatus: 'denied'
+      });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `users/${uid}`);
+    }
+  };
 
   const toggleStrategist = async (user: UserProfile) => {
     try {
@@ -649,29 +670,99 @@ function UserManager() {
     }
   };
 
+  const pendingUsers = items.filter(u => u.premiumRequestStatus === 'pending');
+
   return (
-    <div className="space-y-6">
-      <h3 className="text-xl font-black italic">User Management</h3>
+    <div className="space-y-8 font-sans">
+      {/* Pending Approvals Queue */}
       <div className="space-y-4">
-        {items.map(u => (
-          <div key={u.uid} className="p-4 bg-white/5 rounded-2xl border border-white/5 flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <img src={u.photoURL} className="w-10 h-10 rounded-full border border-white/10 grayscale" alt="" />
-              <div>
-                <div className="font-bold text-white/80 leading-tight">{u.displayName}</div>
-                <div className="text-[10px] text-gray-700 uppercase font-bold tracking-widest font-mono">{u.email}</div>
+        <h3 className="text-sm font-mono font-black text-amber-400 uppercase tracking-widest flex items-center gap-2">
+          <span>👑 PENDING PREMIUM CONFIRMATIONS / भुगतान सत्यापन सूची</span>
+          <span className="px-2 py-0.5 bg-amber-500/10 text-amber-300 font-sans font-bold text-xs rounded-full">
+            {pendingUsers.length} pending
+          </span>
+        </h3>
+        
+        {pendingUsers.length === 0 ? (
+          <div className="p-6 bg-white/[0.02] border border-white/5 rounded-2xl text-center text-xs text-zinc-500 font-mono italic">
+            There are no pending premium upgrade requests currently in the manual ledger queue.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4">
+            {pendingUsers.map(u => (
+              <div key={u.uid} className="p-5 bg-gradient-to-r from-amber-500/[0.02] via-neutral-900 to-neutral-900 border border-amber-500/30 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-md">
+                <div className="flex items-center gap-4">
+                  <img src={u.photoURL} className="w-12 h-12 rounded-full border border-amber-500/20" alt="" />
+                  <div className="space-y-1 text-left">
+                    <div className="font-bold text-white text-sm">{u.displayName}</div>
+                    <div className="text-[10px] text-gray-400 font-mono tracking-wide">{u.email}</div>
+                    <div className="flex flex-wrap gap-2 pt-1 font-mono text-[9px] font-black uppercase tracking-wider">
+                      <span className="px-2 py-0.5 bg-amber-500/10 text-amber-400 rounded-md border border-amber-500/20">
+                        Plan: {u.premiumRequestPlan === 'elite' ? 'Elite Consult 1-on-1' : 'Sovereign Pass'}
+                      </span>
+                      <span className="px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded-md border border-white/5">
+                        Details: {u.premiumRequestDetails || 'Standard payment details'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex gap-2.5 w-full md:w-auto pt-2 md:pt-0 self-end md:self-center">
+                  <button 
+                    onClick={() => handleApprove(u.uid)}
+                    className="flex-1 md:flex-none px-4 py-2.5 bg-green-500 hover:bg-green-600 text-black text-[10px] font-mono font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 font-bold shadow-lg"
+                  >
+                    <Check className="w-3.5 h-3.5" /> Approve Payment / स्वीकृत करें
+                  </button>
+                  <button 
+                    onClick={() => handleDecline(u.uid)}
+                    className="flex-1 md:flex-none px-4 py-2.5 bg-red-950/40 hover:bg-red-900/40 text-red-400 text-[10px] font-mono font-black uppercase tracking-widest rounded-xl border border-red-500/25 hover:border-red-500/40 transition-all cursor-pointer flex items-center justify-center gap-1.5 font-bold"
+                  >
+                    <X className="w-3.5 h-3.5" /> Decline / खारिज करें
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* General User Registry list */}
+      <div className="space-y-4 pt-6 border-t border-white/5">
+        <h3 className="text-sm font-mono font-black text-white/50 uppercase tracking-widest text-left">
+          ALL REGISTERED HUNTERS / सर्व उपयोगकर्ता सूची
+        </h3>
+        
+        <div className="grid grid-cols-1 gap-3">
+          {items.map(u => (
+            <div key={u.uid} className="p-4 bg-white/5 rounded-2xl border border-white/5 flex justify-between items-center text-left">
+              <div className="flex items-center gap-4">
+                <img src={u.photoURL} className="w-10 h-10 rounded-full border border-white/10 grayscale" alt="" />
+                <div>
+                  <div className="font-bold text-white/80 leading-tight text-sm flex items-center gap-2">
+                    {u.displayName}
+                    {u.isAdmin && <span className="text-[8px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded uppercase font-black tracking-widest">Admin</span>}
+                    {u.isStrategist && <span className="text-[8px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded uppercase font-black tracking-widest">Premium</span>}
+                  </div>
+                  <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest font-mono pt-0.5">{u.email}</div>
+                  {u.premiumRequestStatus && u.premiumRequestStatus !== 'pending' && (
+                    <div className="text-[9px] font-mono font-semibold text-zinc-400 pt-1">
+                      Last request status: <span className={u.premiumRequestStatus === 'approved' ? 'text-green-400' : 'text-red-400'}>{u.premiumRequestStatus.toUpperCase()}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <button 
+                  onClick={() => toggleStrategist(u)}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${u.isStrategist ? 'bg-white text-black border-white' : 'bg-white/5 text-gray-500 border-white/10 hover:border-white/50 hover:text-white'}`}
+                >
+                  {u.isStrategist ? 'Revoke Premium Authorization' : 'Grant Premium Access'}
+                </button>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <button 
-                onClick={() => toggleStrategist(u)}
-                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${u.isStrategist ? 'bg-white text-black border-white' : 'bg-white/5 text-gray-700 border-white/10 hover:border-white/50 hover:text-white'}`}
-              >
-                {u.isStrategist ? 'Revoke Strategist Authorization' : 'Grant Strategist Authorization'}
-              </button>
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );

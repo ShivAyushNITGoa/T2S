@@ -17,6 +17,8 @@ interface GatewayViewProps {
   setAuthError?: (err: string | null) => void;
   quotaError?: any;
   onLogout?: () => void;
+  profile?: any;
+  onOpenAscension?: () => void;
 }
 
 export default function GatewayView({ 
@@ -29,7 +31,9 @@ export default function GatewayView({
   authError,
   setAuthError,
   quotaError,
-  onLogout
+  onLogout,
+  profile,
+  onOpenAscension
 }: GatewayViewProps) {
   const [activeTab, setActiveTab] = useState<'briefing' | 'philosophy' | 'pillars'>('briefing');
 
@@ -264,6 +268,62 @@ export default function GatewayView({
 
         {/* Dynamic Bento Stats Grid & Navigation */}
         <div id="intel-deck" className="border-t border-zinc-800 pt-12">
+          {/* HIGH ATTENTION PREMIUM UPGRADE banner */}
+          <div className="max-w-4xl mx-auto mb-8 px-2 sm:px-0">
+            <motion.div 
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-gradient-to-r from-amber-950/20 via-zinc-900 to-amber-950/20 border-2 border-amber-500/60 rounded-[32px] p-6 md:p-10 space-y-6 relative overflow-hidden shadow-[0_0_40px_rgba(245,158,11,0.15)]"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div className="space-y-3.5 flex-1">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-500/20 border border-amber-400/30 text-amber-300 rounded-full text-[10px] font-mono font-black uppercase tracking-widest">
+                    👑 ELITE COGNITIVE CLEARANCE / संप्रभु पहुंच
+                  </div>
+                  <h2 className="text-2xl md:text-3xl font-display font-black text-white uppercase tracking-tight leading-none pt-1">
+                    Unlock Premium Intelligence
+                  </h2>
+                  <p className="text-zinc-200 text-xs md:text-sm font-medium leading-relaxed">
+                    लॉगिन करने के बाद, प्रीमियम विशेषाधिकारों (100 दिन की पूरी गाइड, पीडीएफ आलेख, तथा शैडो फाइल्स) के लिए एक भुगतान सत्यापन आवश्यक है। यह पहुँच व्यवस्थापक के माध्यम से सीधे सत्यापित की जाती है।
+                  </p>
+                </div>
+
+                <div className="shrink-0 w-full md:w-auto pt-2 md:pt-0">
+                  {(profile?.isStrategist || profile?.isAdmin) ? (
+                    <div className="bg-green-500/10 border border-green-500/30 text-green-400 rounded-2xl px-5 py-4 text-center space-y-1">
+                      <div className="text-xs font-black uppercase font-mono flex items-center justify-center gap-1.5">
+                        <Zap className="w-4 h-4 fill-green-400" /> ✓ Premium Active
+                      </div>
+                      <div className="text-[9px] font-mono tracking-wider uppercase text-zinc-400">SOVEREIGN PRIVILEGES ENABLED</div>
+                    </div>
+                  ) : profile?.premiumRequestStatus === 'pending' ? (
+                    <div className="bg-amber-500/15 border border-amber-500/30 text-amber-300 rounded-2xl px-5 py-4 text-center space-y-1 animate-pulse">
+                      <div className="text-xs font-black uppercase font-mono flex items-center justify-center gap-1.5">
+                        ⏱️ Verification Pending
+                      </div>
+                      <div className="text-[9px] font-mono tracking-wider uppercase text-zinc-300">ADMIN REVIEW IN PROGRESS</div>
+                    </div>
+                  ) : isAuthenticated ? (
+                    <button
+                      onClick={onOpenAscension}
+                      className="w-full md:w-auto px-6 py-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black text-xs font-mono font-black uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(245,158,11,0.2)] hover:scale-[1.03] transition-all cursor-pointer font-bold"
+                    >
+                      <Zap className="w-4 h-4 fill-black" /> Request Premium Unlock / प्रीमियम अनलॉक अनुरोध
+                    </button>
+                  ) : (
+                    <button
+                      onClick={onLogin}
+                      className="w-full md:w-auto px-6 py-4 bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-mono font-black uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 border border-zinc-700 hover:scale-[1.03] transition-all cursor-pointer font-bold"
+                    >
+                      🔑 Login & Request Premium / अनलॉक करें
+                    </button>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             
             {/* Digital Front (YouTube) */}
@@ -503,8 +563,46 @@ export default function GatewayView({
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-zinc-800 text-center">
-                <span className="text-xs font-mono text-zinc-250 font-black uppercase">BUILDING THE SYSTEM FOR SOVEREIGNS</span>
+              <div className="pt-6 border-t border-zinc-800">
+                {(profile?.isStrategist || profile?.isAdmin) ? (
+                  <div className="text-center space-y-2">
+                    <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500/10 border border-green-500/30 text-green-400 rounded-xl text-xs font-black uppercase tracking-wider">
+                      ✓ Premium Active / संप्रभु पहुंच सक्षम
+                    </div>
+                    <p className="text-[9px] text-zinc-400 font-mono tracking-widest uppercase">ALL COGNITIVE ASSETS DEPLOYED</p>
+                  </div>
+                ) : profile?.premiumRequestStatus === 'pending' ? (
+                  <div className="text-center space-y-2">
+                    <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-xl text-xs font-black uppercase tracking-wider animate-pulse">
+                      ⏱️ Verification Pending / सत्यापन लंबित
+                    </div>
+                    <p className="text-[9px] text-zinc-400 font-mono tracking-widest uppercase">ADMIN REVIEW IN PROGRESS</p>
+                  </div>
+                ) : isAuthenticated ? (
+                  <div className="space-y-4">
+                    <button
+                      onClick={onOpenAscension}
+                      className="w-full py-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black text-xs font-mono font-black uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(245,158,11,0.2)] hover:scale-[1.02] transition-all cursor-pointer"
+                    >
+                      <Zap className="w-4 h-4 fill-black" /> Request Premium Unlock / प्रीमियम अनलॉक अनुरोध
+                    </button>
+                    <p className="text-[9px] text-zinc-400 font-mono tracking-wide text-center uppercase">
+                      Elevates you to Special Strategist level with unlimited file & archive privileges.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <button
+                      onClick={onLogin}
+                      className="w-full py-4 bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-mono font-black uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 border border-zinc-700 hover:scale-[1.02] transition-all cursor-pointer"
+                    >
+                      🔑 Login & Request Premium / लॉगिन कर अनलॉक करें
+                    </button>
+                    <p className="text-[9px] text-zinc-400 font-mono tracking-wide text-center uppercase">
+                      Log in using Google to initialize validation sequence.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 

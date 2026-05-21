@@ -5,7 +5,8 @@ import {
   LogOut, Send, Heart, Menu, X, User,
   TrendingUp, Zap, Target, Settings, Edit2, Save,
   ShoppingCart, ArrowLeft, BarChart3, ExternalLink,
-  DollarSign, Share2, Copy, Upload, Image as ImageIcon
+  DollarSign, Share2, Copy, Upload, Image as ImageIcon,
+  CreditCard, Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Logo from './components/Logo';
@@ -1049,31 +1050,38 @@ export default function App() {
 
   if (showGateway) {
     return (
-      <GatewayView 
-        onLogin={handleLogin} 
-        onLoginRedirect={handleLoginWithRedirect}
-        onEnter={() => {
-          if (user) {
-            setShowGateway(false);
-          } else {
-            handleLogin();
-          }
-        }} 
-        onEnterWithTab={(tab) => {
-          setActiveTab(tab);
-          if (user) {
-            setShowGateway(false);
-          } else {
-            handleLogin();
-          }
-        }}
-        isAuthenticated={!!user} 
-        userEmail={user?.email} 
-        authError={authError}
-        setAuthError={setAuthError}
-        quotaError={quotaError}
-        onLogout={handleLogout}
-      />
+      <>
+        <GatewayView 
+          onLogin={handleLogin} 
+          onLoginRedirect={handleLoginWithRedirect}
+          onEnter={() => {
+            if (user) {
+              setShowGateway(false);
+            } else {
+              handleLogin();
+            }
+          }} 
+          onEnterWithTab={(tab) => {
+            setActiveTab(tab);
+            if (user) {
+              setShowGateway(false);
+            } else {
+              handleLogin();
+            }
+          }}
+          isAuthenticated={!!user} 
+          userEmail={user?.email} 
+          authError={authError}
+          setAuthError={setAuthError}
+          quotaError={quotaError}
+          onLogout={handleLogout}
+          profile={profile}
+          onOpenAscension={() => setIsAscensionOpen(true)}
+        />
+        {isAscensionOpen && profile && (
+          <AscensionModal onClose={() => setIsAscensionOpen(false)} profile={profile} />
+        )}
+      </>
     );
   }
 
@@ -1182,6 +1190,20 @@ export default function App() {
             </h2>
           </div>
           <div className="flex items-center gap-3 md:gap-6">
+            {profile && (profile.isStrategist || profile.isAdmin) ? (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg text-[9px] font-black uppercase tracking-wider">
+                <Zap className="w-3 h-3 text-green-400 fill-green-400 animate-pulse" />
+                <span>Premium / संप्रभु</span>
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsAscensionOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:scale-[1.03] text-black rounded-lg text-[9px] font-black uppercase tracking-wider shadow-[0_0_15px_rgba(245,158,11,0.2)] transition-all cursor-pointer"
+              >
+                <Zap className="w-3 h-3 fill-black text-black" />
+                <span>Request Premium / प्रीमियम अनलॉक</span>
+              </button>
+            )}
             <div className="hidden sm:flex flex-col items-end">
               <span className="text-[10px] uppercase tracking-wider text-white/40 font-bold">Total Points</span>
               <span className="text-lg md:text-xl font-bold font-mono text-white leading-none">{(profile?.xp || 0).toLocaleString()}</span>
@@ -1409,9 +1431,11 @@ export default function App() {
                         <Card 
                           key={module.id} 
                           id={`module-${module.id}`} 
-                          className={`cursor-pointer transition-all duration-300 relative overflow-hidden group ${finalLocked ? 'opacity-40 grayscale pointer-events-none' : 'hover:border-white/20 hover:bg-white/[0.02]'}`}
+                          className={`cursor-pointer transition-all duration-300 relative overflow-hidden group ${isPremiumLocked ? 'border-amber-500/20 hover:border-amber-500/50 bg-amber-500/[0.01]' : journeyLocked ? 'opacity-40 grayscale pointer-events-none' : 'hover:border-white/20 hover:bg-white/[0.02]'}`}
                           onClick={() => {
-                            if (!finalLocked) {
+                            if (isPremiumLocked) {
+                              setIsAscensionOpen(true);
+                            } else if (!journeyLocked) {
                               setSelectedJourneyModule(module);
                             }
                           }}
@@ -1420,17 +1444,19 @@ export default function App() {
                             <span className="text-5xl font-black text-white/5 group-hover:text-amber-500/20 transition-colors duration-500 font-mono">
                               {module.day < 10 ? `0${module.day}` : module.day}
                             </span>
-                            {isCompleted ? <CheckCircle2 className="w-5 h-5 text-white" /> : finalLocked ? <Lock className="w-5 h-5 text-gray-700" /> : <ChevronRight className="w-5 h-5 text-white" />}
+                            {isCompleted ? <CheckCircle2 className="w-5 h-5 text-white" /> : isPremiumLocked ? <Zap className="w-5 h-5 text-amber-500 fill-amber-500 animate-pulse" /> : journeyLocked ? <Lock className="w-5 h-5 text-gray-700" /> : <ChevronRight className="w-5 h-5 text-white" />}
                           </div>
                           <div className="flex items-center gap-2 mb-2">
                             <h3 className="text-lg font-bold text-white leading-tight">
-                              {finalLocked ? "🔒 Locked Protocol / लॉक प्रोटोकॉल" : module.title}
+                              {journeyLocked ? "🔒 Locked Protocol / लॉक प्रोटोकॉल" : isPremiumLocked ? `🔒 Premium: ${module.title}` : module.title}
                             </h3>
-                            {module.isPremium && <Zap className="w-4 h-4 text-white fill-white shrink-0" />}
+                            {module.isPremium && <Zap className="w-4 h-4 text-amber-500 fill-amber-500 shrink-0" />}
                           </div>
                           <p className="text-xs text-gray-500 leading-relaxed mb-6 h-12 overflow-hidden line-clamp-3">
-                            {finalLocked 
+                            {journeyLocked 
                               ? "इस नियम को खोलने के लिए पिछले दिनों के कार्य पूरे करें। / Complete the previous days' protocols to unlock." 
+                              : isPremiumLocked 
+                              ? "यह रणनीतिक विषय प्रीमियम सदस्यों के लिए है। अनलॉक करने के लिए क्लिक करें। / This strategy is reserved for Premium sovereigns. Click to request unlock."
                               : module.description}
                           </p>
                           {!finalLocked && !isCompleted && (
@@ -1463,6 +1489,7 @@ export default function App() {
                         video={v} 
                         isLocked={v.isPremium && !profile?.isStrategist && !profile?.isAdmin}
                         onClick={() => setSelectedVideo(v)} 
+                        onUnlockClick={() => setIsAscensionOpen(true)}
                       />
                     ))}
                   </div>
@@ -1492,6 +1519,7 @@ export default function App() {
                     book={b} 
                     isLocked={b.isPremium && !profile?.isStrategist && !profile?.isAdmin}
                     onClick={() => setSelectedBook(b)}
+                    onUnlockClick={() => setIsAscensionOpen(true)}
                   />
                 ))}
               </motion.div>
@@ -1885,116 +1913,467 @@ function SearchModal({ onClose, journey, archives, library, onSelect, profile }:
 function AscensionModal({ onClose, profile }: { onClose: () => void, profile: UserProfile }) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<'sovereign' | 'elite'>('sovereign');
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'upi'>('card');
+  
+  // Payment card inputs
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+  const [cardName, setCardName] = useState('');
+  const [upiAddress, setUpiAddress] = useState('');
+  
+  // Legal/Intel-Handshake Declarations & Consents
+  const [consentOne, setConsentOne] = useState(false);
+  const [consentTwo, setConsentTwo] = useState(false);
+
+  // Security Verification Logs
+  const [logIndex, setLogIndex] = useState(0);
+  const [paymentLogs, setPaymentLogs] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (step === 3) {
+      setLogIndex(0);
+      setPaymentLogs([]);
+      const logs = [
+        "Initiating sovereign secure handshake...",
+        "Validating account credentials code...",
+        "Resolving server-side strategic keys...",
+        "Synchronizing strategic ledger index docs...",
+        "Authorizing complete sovereign access roles...",
+        "Upgrading global user privilege to Strategist..."
+      ];
+      
+      const interval = setInterval(() => {
+        setLogIndex(prev => {
+          if (prev < logs.length) {
+            setPaymentLogs(p => [...p, logs[prev]]);
+            if (prev === logs.length - 1) {
+              handleAscension();
+            }
+            return prev + 1;
+          } else {
+            clearInterval(interval);
+            return prev;
+          }
+        });
+      }, 700);
+      
+      return () => clearInterval(interval);
+    }
+  }, [step]);
 
   const handleAscension = async () => {
-    setLoading(true);
-    // Simulate payment call
-    setTimeout(async () => {
-      try {
-        await updateDoc(doc(db, 'users', profile.uid), { isStrategist: true });
-        setStep(3);
-      } catch (e) {
-        handleFirestoreError(e, OperationType.UPDATE, `users/${profile.uid}`);
-      } finally {
-        setLoading(false);
-      }
-    }, 2000);
+    try {
+      await updateDoc(doc(db, 'users', profile.uid), { 
+        premiumRequestStatus: 'pending',
+        premiumRequestPlan: selectedPlan,
+        premiumRequestPaymentMethod: paymentMethod,
+        premiumRequestDetails: paymentMethod === 'card' 
+          ? `Card ending in ${cardNumber.trim().slice(-4)}`
+          : `UPI ID: ${upiAddress}`,
+        premiumRequestDate: serverTimestamp()
+      });
+      setStep(4);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `users/${profile.uid}`);
+      setStep(2); // return to payment on error
+    }
+  };
+
+  const getPlanPrice = () => {
+    return selectedPlan === 'sovereign' ? { usd: '$99', inr: '7,999' } : { usd: '$249', inr: '19,999' };
+  };
+
+  const isFormValid = () => {
+    if (!consentOne || !consentTwo) return false;
+    if (paymentMethod === 'card') {
+      return cardNumber.trim().length >= 12 && cardExpiry.trim().length >= 4 && cardCvv.trim().length >= 3 && cardName.trim().length > 3;
+    } else {
+      return upiAddress.includes('@') && upiAddress.length > 5;
+    }
+  };
+
+  const formatCardNumber = (value: string) => {
+    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+    const matches = v.match(/\d{4,16}/g);
+    const match = (matches && matches[0]) || '';
+    const parts = [];
+
+    for (let i = 0, len = match.length; i < len; i += 4) {
+      parts.push(match.substring(i, i + 4));
+    }
+
+    if (parts.length > 0) {
+      return parts.join(' ');
+    } else {
+      return v;
+    }
+  };
+
+  const formatExpiry = (value: string) => {
+    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+    if (v.length >= 2) {
+      return `${v.slice(0, 2)}/${v.slice(2, 4)}`;
+    }
+    return v;
   };
 
   return (
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[100] flex items-center justify-center p-6" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[100] flex items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
       <motion.div 
-        initial={{ scale: 0.9, opacity: 0 }} 
+        initial={{ scale: 0.95, opacity: 0 }} 
         animate={{ scale: 1, opacity: 1 }} 
-        className="w-full max-w-lg bg-[#0a0a0a] border border-white/20 rounded-[40px] overflow-hidden shadow-[0_0_100px_rgba(255,255,255,0.05)]"
+        className="w-full max-w-xl bg-zinc-950 border border-zinc-800 rounded-[32px] overflow-hidden shadow-[0_0_100px_rgba(245,158,11,0.1)] my-8"
         onClick={e => e.stopPropagation()}
       >
-        <div className="h-2 bg-neutral-900 w-full overflow-hidden">
-          <motion.div 
-            initial={{ width: '33%' }} 
-            animate={{ width: step === 1 ? '33%' : step === 2 ? '66%' : '100%' }} 
-            className="h-full bg-white shadow-[0_0_20px_rgba(255,255,255,0.4)]"
-          />
+        {/* Progress Timeline Header */}
+        <div className="grid grid-cols-4 h-1.5 bg-zinc-900 overflow-hidden">
+          <div className={`h-full transition-all duration-300 ${step >= 1 ? 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]' : 'bg-transparent'}`} />
+          <div className={`h-full transition-all duration-300 ${step >= 2 ? 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]' : 'bg-transparent'}`} />
+          <div className={`h-full transition-all duration-300 ${step >= 3 ? 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]' : 'bg-transparent'}`} />
+          <div className={`h-full transition-all duration-300 ${step >= 4 ? 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]' : 'bg-transparent'}`} />
+        </div>
+
+        {/* Header Title Desk */}
+        <div className="px-6 pt-6 flex items-center justify-between border-b border-zinc-900 pb-4">
+          <div className="flex items-center gap-2">
+            <Zap className="w-5 h-5 text-amber-500 fill-amber-500" />
+            <h1 className="text-xs font-mono font-black text-white tracking-widest uppercase">
+              {step === 1 && "Plan Setup Desk"}
+              {step === 2 && "Secure Payment Gateway"}
+              {step === 3 && "Authority Handshake"}
+              {step === 4 && "Access Verification Verified"}
+            </h1>
+          </div>
+          {step > 1 && step < 3 && (
+            <button 
+              onClick={() => setStep(prev => prev - 1)} 
+              className="px-3 py-1 bg-zinc-900 hover:bg-zinc-800 text-[10px] font-mono font-bold uppercase text-zinc-400 hover:text-white rounded-lg border border-zinc-800 transition-colors flex items-center gap-1 cursor-pointer"
+            >
+              <ArrowLeft size={12} /> Back
+            </button>
+          )}
         </div>
         
-        <div className="p-12 text-center space-y-8 relative">
-          <button 
-            onClick={onClose} 
-            className="absolute top-8 left-8 p-2 hover:bg-white/5 rounded-lg transition-colors text-gray-500 hover:text-white"
-          >
-            <ArrowLeft size={20} />
-          </button>
+        <div className="p-8 space-y-6">
+          
+          {/* STEP 1: Plan Tier Selector & Benefits Overview */}
           {step === 1 && (
-            <>
-              <div className="w-24 h-24 bg-white/5 border border-white/10 rounded-[32px] mx-auto flex items-center justify-center">
-                <Zap size={48} className="text-white fill-white" />
-              </div>
-              <div className="space-y-4">
-                <h2 className="text-4xl font-black text-white italic tracking-tighter uppercase">Special Access / विशेष एक्सेस</h2>
-                <p className="text-gray-500 text-sm leading-relaxed font-medium">
-                  Unlock all premium books and video lessons. Join our community of advanced mind trainers.
+            <div className="space-y-6">
+              <div className="text-center space-y-2">
+                <h2 className="text-3xl font-display font-black text-white italic tracking-tight uppercase">Elevate Status / सदस्यता स्तर चुनें</h2>
+                <p className="text-zinc-400 text-xs max-w-md mx-auto">
+                  Acquire complete sovereign analytical packages, lifetime audio/files, and direct modules. Choose your gateway configuration.
                 </p>
               </div>
-              <div className="space-y-4">
-                <div className="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/5 text-left">
-                  <div className="w-10 h-10 bg-white text-black rounded-xl flex items-center justify-center font-black italic">$99</div>
-                  <div>
-                    <div className="text-white font-bold uppercase text-xs tracking-widest">Lifetime Access</div>
-                    <div className="text-[10px] text-gray-600 font-bold">जीवनभर के लिए एक्सेस</div>
+
+              {/* Dynamic Option Panels */}
+              <div className="space-y-3">
+                <div 
+                  onClick={() => setSelectedPlan('sovereign')}
+                  className={`p-5 rounded-2xl border transition-all cursor-pointer text-left relative flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${selectedPlan === 'sovereign' ? 'border-amber-500/80 bg-amber-500/[0.02] shadow-[0_0_20px_rgba(245,158,11,0.05)]' : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/40'}`}
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono font-black text-white bg-zinc-800 border border-zinc-700 px-2 py-0.5 rounded tracking-wide uppercase">Tier Alpha</span>
+                      <h3 className="text-lg font-black text-white uppercase tracking-tight">Sovereign Pass / संप्रभु पास</h3>
+                    </div>
+                    <p className="text-xs text-zinc-400 font-medium">100-Day complete archives, PDF Manuscripts, and video blueprints forever.</p>
+                  </div>
+                  <div className="shrink-0 text-right md:text-right border-t md:border-t-0 pt-3 md:pt-0 border-zinc-800 w-full md:w-auto">
+                    <div className="text-2xl font-display font-black text-amber-500">₹7,999 <span className="text-xs tracking-normal font-sans font-semibold text-zinc-500">($99)</span></div>
+                    <div className="text-[9px] font-mono text-zinc-500 font-black uppercase">Lifetime Package</div>
+                  </div>
+                  {selectedPlan === 'sovereign' && (
+                    <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center">
+                      <Check className="w-3 h-3 text-black stroke-[3px]" />
+                    </div>
+                  )}
+                </div>
+
+                <div 
+                  onClick={() => setSelectedPlan('elite')}
+                  className={`p-5 rounded-2xl border transition-all cursor-pointer text-left relative flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${selectedPlan === 'elite' ? 'border-amber-500/80 bg-amber-500/[0.02] shadow-[0_0_20px_rgba(245,158,11,0.05)]' : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/40'}`}
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono font-black text-purple-400 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded tracking-wide uppercase">Tier Premium</span>
+                      <h3 className="text-lg font-black text-white uppercase tracking-tight">Elite Consult / रणनीतिकार</h3>
+                    </div>
+                    <p className="text-xs text-zinc-400 font-medium">Includes Sovereign lifetime pass plus direct 1-on-1 strategy audit lesson.</p>
+                  </div>
+                  <div className="shrink-0 text-right md:text-right border-t md:border-t-0 pt-3 md:pt-0 border-zinc-800 w-full md:w-auto">
+                    <div className="text-2xl font-display font-black text-purple-400">₹19,999 <span className="text-xs tracking-normal font-sans font-semibold text-zinc-500">($249)</span></div>
+                    <div className="text-[9px] font-mono text-zinc-500 font-black uppercase">Priority Session</div>
+                  </div>
+                  {selectedPlan === 'elite' && (
+                    <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center">
+                      <Check className="w-3 h-3 text-black stroke-[3px]" />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Visual Benefits Matrix */}
+              <div className="p-4 bg-zinc-900/40 border border-zinc-900 rounded-2xl space-y-3">
+                <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest font-black">Authorized Cognitive Deliverables:</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-zinc-300">
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Unlock Day 01-100 Strategums
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Watch Premium Archives lessons
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Download exclusive pdf library
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Special Strategist status emblem
                   </div>
                 </div>
-                <button 
-                  onClick={() => setStep(2)}
-                  className="w-full py-4 bg-white text-black rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-gray-200 transition-all flex flex-col items-center"
-                >
-                  <span>Continue to Unlock</span>
-                  <span className="text-[8px] normal-case tracking-normal opacity-60">आगे बढ़ें</span>
-                </button>
               </div>
-            </>
+
+              <button 
+                onClick={() => setStep(2)}
+                className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-black font-mono font-black uppercase tracking-widest text-xs rounded-2xl shadow-[0_4px_20px_rgba(245,158,11,0.25)] hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                Proceed to Checkout Details <ChevronRight size={14} />
+              </button>
+            </div>
           )}
 
+          {/* STEP 2: Checkout Form & Interactive Payment Fields + Declarations */}
           {step === 2 && (
-            <>
-              <div className="space-y-6">
-                <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-8" />
-                <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter">Synchronizing Ledger...</h2>
-                <p className="text-gray-600 text-xs font-bold uppercase tracking-[0.2em]">Contacting Strategic Reserve</p>
-                <div className="pt-8">
-                   <button 
-                     disabled={loading}
-                     onClick={handleAscension}
-                     className="w-full py-4 bg-white text-black rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl"
-                   >
-                     {loading ? "PROCESSING..." : "FINAL AUTHORIZATION"}
-                   </button>
+            <div className="space-y-6">
+              {/* Order pricing breakdown summary */}
+              <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl flex justify-between items-center">
+                <div>
+                  <div className="text-xs font-mono text-zinc-500 uppercase font-black tracking-widest">Order Summary</div>
+                  <div className="text-white font-black text-sm uppercase">
+                    {selectedPlan === 'sovereign' ? 'Sovereign Pass / संप्रभु पास' : 'Elite Consult (Mentorship)'}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xl font-display font-black text-amber-500">
+                    ₹{getPlanPrice().inr} <span className="text-xs text-zinc-500 font-sans font-medium">({getPlanPrice().usd})</span>
+                  </div>
+                  <div className="text-[9px] font-mono text-zinc-500 font-bold uppercase">100% Secure Checkout Desk (GST Inc)</div>
                 </div>
               </div>
-            </>
+
+              {/* Payment Methods tabs selection */}
+              <div className="space-y-4 text-left">
+                <label className="text-[10px] font-mono text-zinc-500 uppercase font-black tracking-widest block">Choose Payment Gateway:</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setPaymentMethod('card')}
+                    className={`py-3.5 px-4 rounded-xl font-mono text-xs font-black uppercase tracking-wider border transition-all flex items-center justify-center gap-2 cursor-pointer ${paymentMethod === 'card' ? 'bg-white text-black border-white' : 'bg-transparent text-zinc-400 border-zinc-800 hover:border-zinc-700 hover:text-white'}`}
+                  >
+                    <CreditCard size={14} /> Credit / Debit Card & UPI
+                  </button>
+                  <button
+                    onClick={() => setPaymentMethod('upi')}
+                    className={`py-3.5 px-4 rounded-xl font-mono text-xs font-black uppercase tracking-wider border transition-all flex items-center justify-center gap-2 cursor-pointer ${paymentMethod === 'upi' ? 'bg-white text-black border-white' : 'bg-transparent text-zinc-400 border-zinc-800 hover:border-zinc-700 hover:text-white'}`}
+                  >
+                    🔑 Direct UPI Web-App / QR
+                  </button>
+                </div>
+              </div>
+
+              {/* Payment details block depending on method */}
+              <div className="space-y-4 text-left">
+                {paymentMethod === 'card' ? (
+                  <div className="space-y-3.5">
+                    <div>
+                      <label className="text-[9px] font-mono text-zinc-400 uppercase font-black tracking-wide block mb-1">Card Number (लॉगिन क्रेडिट कार्ड)</label>
+                      <input 
+                        type="text" 
+                        maxLength={19}
+                        placeholder="4111 2222 3333 4444"
+                        value={cardNumber}
+                        onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+                        className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-white font-mono text-sm placeholder-zinc-600 focus:border-amber-500 outline-none transition-colors"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[9px] font-mono text-zinc-400 uppercase font-black tracking-wide block mb-1">Expiry Date</label>
+                        <input 
+                          type="text" 
+                          maxLength={5}
+                          placeholder="MM/YY"
+                          value={cardExpiry}
+                          onChange={(e) => setCardExpiry(formatExpiry(e.target.value))}
+                          className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-white font-mono text-sm placeholder-zinc-600 focus:border-amber-500 outline-none transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-mono text-zinc-400 uppercase font-black tracking-wide block mb-1">CVV / Security Code</label>
+                        <input 
+                          type="password" 
+                          maxLength={4}
+                          placeholder="•••"
+                          value={cardCvv}
+                          onChange={(e) => setCardCvv(e.target.value.replace(/[^0-9]/g, ''))}
+                          className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-white font-mono text-sm placeholder-zinc-600 focus:border-amber-500 outline-none transition-colors"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-mono text-zinc-400 uppercase font-black tracking-wide block mb-1">Primary Holder Name</label>
+                      <input 
+                        type="text" 
+                        placeholder="COGNITIVE HUNTER"
+                        value={cardName}
+                        onChange={(e) => setCardName(e.target.value)}
+                        className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-white font-mono text-sm placeholder-zinc-600 focus:border-amber-500 outline-none transition-colors"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Mock QR scan component */}
+                    <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl flex flex-col md:flex-row items-center gap-4 text-center md:text-left">
+                      <div className="w-28 h-28 bg-white p-2 rounded-xl shrink-0 border border-zinc-700 shadow-lg flex flex-col justify-between items-center">
+                        <div className="grid grid-cols-4 gap-1 w-full h-full opacity-90">
+                          {Array.from({ length: 16 }).map((_, i) => (
+                            <div key={i} className={`rounded-[2px] ${i % 3 === 0 || i % 7 === 1 ? 'bg-black' : 'bg-transparent'}`} />
+                          ))}
+                        </div>
+                      </div>
+                      <div className="space-y-1.5 flex-1">
+                        <div className="text-[10px] bg-amber-500/10 border border-amber-500/30 text-amber-500 px-2.5 py-0.5 rounded-full font-mono font-black uppercase tracking-wider w-fit mx-auto md:mx-0">UPI PAY LINK PROTOCOL</div>
+                        <h4 className="text-xs font-black text-white uppercase font-mono">SCAN MOCK QR TO PAY UPI</h4>
+                        <p className="text-[10px] text-zinc-400 leading-relaxed font-semibold">Verify the scan via any payment scanner like BHIM, PhonePe, paytm or Google Pay. Mock secure ledger resolves automatically.</p>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-mono text-zinc-400 uppercase font-black tracking-wide block mb-1">Enter your UPI ID Address (लॉगिन UPI एड्रेस)</label>
+                      <input 
+                        type="text" 
+                        placeholder="sovereign@bhim"
+                        value={upiAddress}
+                        onChange={(e) => setUpiAddress(e.target.value)}
+                        className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-white font-mono text-sm placeholder-zinc-600 focus:border-amber-500 outline-none transition-colors"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Declarations checklist (Mandatory Confirmation) */}
+              <div className="space-y-3 text-left pt-2 border-t border-zinc-900">
+                <label className="text-[10px] font-mono text-zinc-500 uppercase font-black tracking-widest block">Sovereign Declarations Confirmation:</label>
+                
+                <label className="flex items-start gap-3 cursor-pointer group">
+                  <input 
+                    type="checkbox"
+                    checked={consentOne}
+                    onChange={(e) => setConsentOne(e.target.checked)}
+                    className="mt-1 accent-amber-500 w-4 h-4 cursor-pointer"
+                  />
+                  <span className="text-xs text-zinc-400 group-hover:text-zinc-300 transition-colors font-medium leading-relaxed select-none">
+                    मैं पुष्टि करता हूँ कि मैं १०० दिन की इस हंटर-यात्रा का पूरी ईमानदारी से पालन करूँगा। / I commit to honoring the rigorous 100-Day Hunter protocols completely.
+                  </span>
+                </label>
+
+                <label className="flex items-start gap-3 cursor-pointer group">
+                  <input 
+                    type="checkbox"
+                    checked={consentTwo}
+                    onChange={(e) => setConsentTwo(e.target.checked)}
+                    className="mt-1 accent-amber-500 w-4 h-4 cursor-pointer"
+                  />
+                  <span className="text-xs text-zinc-400 group-hover:text-zinc-300 transition-colors font-medium leading-relaxed select-none">
+                    मैं समझता हूँ कि शैडो फाइल्स तथा रणनीतियां केवल मेरे संज्ञानात्मक विकास के लिए हैं। / I acknowledge that these high-tactical plans are designed exclusively for cognitive analytical development.
+                  </span>
+                </label>
+              </div>
+
+              {/* Submit Checkout Gate button */}
+              <button 
+                disabled={!isFormValid()}
+                onClick={() => setStep(3)}
+                className={`w-full py-4 rounded-2xl font-mono font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-2 cursor-pointer ${isFormValid() ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black hover:scale-[1.01] shadow-[0_4px_20px_rgba(245,158,11,0.25)]' : 'bg-zinc-900 border border-zinc-800 text-zinc-600 cursor-not-allowed'}`}
+              >
+                <Lock size={12} /> Pay & Authorize ₹{getPlanPrice().inr} ({getPlanPrice().usd})
+              </button>
+            </div>
           )}
 
+          {/* STEP 3: High-Tech authority handshake sequence simulator loaders */}
           {step === 3 && (
-            <>
-              <motion.div 
-                initial={{ scale: 0.5 }} 
-                animate={{ scale: 1 }} 
-                className="w-24 h-24 bg-white rounded-[32px] mx-auto flex items-center justify-center shadow-[0_0_50px_rgba(255,255,255,0.2)]"
-              >
-                <CheckCircle2 size={48} className="text-black" />
-              </motion.div>
-              <div className="space-y-4">
-                <h2 className="text-4xl font-black text-white italic tracking-tighter uppercase">Ascension Complete</h2>
-                <p className="text-gray-500 text-sm leading-relaxed font-medium">
-                  Your profile has been elevated to Strategist. Your connection to the Nexus is now absolute.
-                </p>
-                <button 
-                  onClick={onClose}
-                  className="w-full py-4 bg-white text-black rounded-2xl font-black uppercase tracking-widest text-xs"
-                >
-                  Enter the Chamber
-                </button>
+            <div className="py-6 space-y-6 text-center">
+              <div className="relative w-20 h-20 mx-auto">
+                <div className="absolute inset-0 border-4 border-amber-500/20 rounded-full" />
+                <div className="absolute inset-0 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Zap className="w-8 h-8 text-amber-500 fill-amber-500 animate-pulse" />
+                </div>
               </div>
-            </>
+              
+              <div className="space-y-2">
+                <h3 className="text-2xl font-display font-black text-white italic tracking-tight uppercase">Authorizing Handshake...</h3>
+                <p className="text-zinc-500 text-[10px] font-mono tracking-widest uppercase">resolving with decentralized server ledger</p>
+              </div>
+
+              {/* Secure Log Console Terminal block */}
+              <div className="p-4 bg-black border border-zinc-900 rounded-2xl text-left font-mono text-[10px] space-y-2 min-h-[140px] max-h-[140px] overflow-y-auto scrollbar-hide select-none">
+                {paymentLogs.map((log, index) => (
+                  <div key={index} className="flex gap-2 text-zinc-400">
+                    <span className="text-amber-500">▶</span>
+                    <span>{log}</span>
+                  </div>
+                ))}
+                {logIndex < 6 && (
+                  <span className="inline-block w-2 bg-white h-3.5 animate-pulse ml-1" />
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* STEP 4: ACCESS UNLEASHED - SUCCESS SCREEN */}
+          {step === 4 && (
+            <div className="space-y-6 text-center">
+              <div className="w-24 h-24 bg-gradient-to-tr from-amber-500/10 to-yellow-500/10 border border-amber-500/30 rounded-[32px] mx-auto flex items-center justify-center shadow-[0_0_40px_rgba(245,158,11,0.15)] animate-bounce">
+                <CheckCircle2 size={48} className="text-amber-400" />
+              </div>
+              
+              <div className="space-y-2">
+                <h2 className="text-3xl font-display font-black text-white italic tracking-tighter uppercase leading-none">Verification Pending / सत्यापन लंबित है</h2>
+                <p className="text-zinc-400 text-xs font-semibold leading-relaxed">
+                  Your payment authorization request has been successfully queued for processing.
+                </p>
+              </div>
+
+              <div className="p-5 bg-zinc-900/60 border border-zinc-900 rounded-2xl text-left space-y-3 font-medium text-xs text-zinc-300">
+                <p>
+                  यह Talk2Society के मुख्य पटल पर व्यवस्थापक (<strong className="text-amber-400">A. K. Chandradipti</strong>) के पास सत्यापन के लिए भेजा गया है।
+                </p>
+                <p>
+                  Once the transaction confirmation is matched against our secure manual ledger, your status will instantly elevate to <strong className="text-white">Special Strategist (संप्रभु रणनीतिकार)</strong>. This process typically takes up to 1-2 hours.
+                </p>
+              </div>
+
+              <div className="p-4 bg-zinc-900/60 border border-zinc-800 rounded-2xl flex justify-between items-center text-left">
+                <div>
+                  <div className="text-[10px] font-mono text-zinc-500 uppercase font-black">Registered Account</div>
+                  <div className="text-white font-bold text-xs font-mono">{profile?.email || 'sovereign_strategist'}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] font-mono text-zinc-500 uppercase font-black">Ledger Status</div>
+                  <div className="text-xs text-amber-500 font-mono font-black uppercase animate-pulse">⏱️ Pending Confirmation</div>
+                </div>
+              </div>
+
+              <button 
+                onClick={onClose}
+                className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-black rounded-2xl font-mono font-black uppercase tracking-widest text-xs transition-colors cursor-pointer font-bold"
+              >
+                Close Gateway / प्रवेश द्वार बंद करें
+              </button>
+            </div>
           )}
         </div>
       </motion.div>
@@ -2163,29 +2542,71 @@ function ProfileView({ profile, rank, onOpenAscension }: { profile: UserProfile,
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {!profile.isStrategist && !profile.isAdmin && (
+        {(!profile.isStrategist && !profile.isAdmin) ? (
           <Card className="lg:col-span-2 bg-white/5 border-white/20">
+            {profile.premiumRequestStatus === 'pending' ? (
+              <div className="flex flex-col md:flex-row items-center gap-8 py-4">
+                <div className="w-24 h-24 bg-amber-500/10 border-2 border-amber-500/30 rounded-3xl flex items-center justify-center shadow-[0_0_50px_rgba(245,158,11,0.15)] animate-pulse rotate-3 shrink-0">
+                  <Zap size={48} className="text-amber-400 fill-amber-400/20" />
+                </div>
+                <div className="flex-1 text-center md:text-left space-y-2">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-500/20 border border-amber-400/30 text-amber-300 rounded-full text-[9px] font-mono font-black uppercase tracking-widest">
+                    ⏱️ PAYMENT VERIFICATION PENDING / सत्यापन लंबित है
+                  </div>
+                  <h2 className="text-3xl font-display font-black text-white italic tracking-tighter uppercase leading-none pt-1">Ledger Update in Progress</h2>
+                  <p className="text-zinc-400 text-sm font-medium leading-relaxed max-w-xl">
+                    व्यवस्थापक (<strong className="text-amber-400">A. K. Chandradipti</strong>) आपके भुगतान सत्यापन का मिलान कर रहे हैं। आपके अनुरोध की समीक्षा पूर्ण होने पर, आपकी सदस्यता स्वचालित रूप से <strong className="text-white">Special Strategist (संप्रभु)</strong> स्तर पर उन्नत कर दी जाएगी। (सामान्यतः इसमें 1-2 घंटे का समय लगता है)
+                  </p>
+                  <div className="pt-3 font-mono text-[10px] text-zinc-500 uppercase flex flex-wrap gap-x-6 gap-y-2 justify-center md:justify-start">
+                    <div>
+                      <span className="text-zinc-600 font-bold">Plan Requested:</span> <strong className="text-amber-400 font-mono">{profile.premiumRequestPlan === 'elite' ? 'Elite 1-on-1 Consult' : 'Sovereign Full Pass'}</strong>
+                    </div>
+                    <div>
+                      <span className="text-zinc-600 font-bold">Details:</span> <strong className="text-zinc-300 font-mono">{profile.premiumRequestDetails || 'Cash/UPI'}</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col md:flex-row items-center gap-8 py-4">
+                <div className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center shadow-[0_0_50px_rgba(255,255,255,0.1)] rotate-3 shrink-0">
+                  <Zap size={48} className="text-black fill-black" />
+                </div>
+                <div className="flex-1 text-center md:text-left space-y-2">
+                  <h2 className="text-3xl font-black text-white italic tracking-tighter uppercase">Join Special Group / विशेष सदस्य बनें</h2>
+                  <p className="text-gray-500 text-sm font-medium leading-relaxed max-w-xl">
+                    Unlock the full potential. Access all books, video breakdowns, and special training modules. Move from being a member to a guide.
+                  </p>
+                  <div className="pt-4 flex flex-wrap gap-4 justify-center md:justify-start">
+                    <button 
+                      onClick={onOpenAscension}
+                      className="px-8 py-3 bg-white text-black text-[10px] font-black uppercase tracking-[0.3em] rounded-xl hover:bg-gray-200 transition-all shadow-xl flex flex-col items-center cursor-pointer font-bold"
+                    >
+                      <span>Unlock Special Access</span>
+                      <span className="text-[8px] normal-case tracking-normal opacity-60">विशेष एक्सेस लें</span>
+                    </button>
+                    <div className="px-6 py-3 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-gray-700 font-mono">
+                      Special Membership Required
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </Card>
+        ) : (
+          <Card className="lg:col-span-2 bg-gradient-to-r from-green-500/5 via-neutral-900 to-green-500/5 border-green-500/20">
             <div className="flex flex-col md:flex-row items-center gap-8 py-4">
-              <div className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center shadow-[0_0_50px_rgba(255,255,255,0.1)] rotate-3">
-                <Zap size={48} className="text-black fill-black" />
+              <div className="w-24 h-24 bg-green-500/10 border-2 border-green-500/30 rounded-3xl flex items-center justify-center shadow-[0_0_50px_rgba(34,197,94,0.15)] rotate-3 shrink-0">
+                <Zap size={48} className="text-green-400 fill-green-400" />
               </div>
               <div className="flex-1 text-center md:text-left space-y-2">
-                <h2 className="text-3xl font-black text-white italic tracking-tighter uppercase">Join Special Group / विशेष सदस्य बनें</h2>
-                <p className="text-gray-500 text-sm font-medium leading-relaxed max-w-xl">
-                  Unlock the full potential. Access all books, video breakdowns, and special training modules. Move from being a member to a guide.
-                </p>
-                <div className="pt-4 flex flex-wrap gap-4 justify-center md:justify-start">
-                   <button 
-                     onClick={onOpenAscension}
-                     className="px-8 py-3 bg-white text-black text-[10px] font-black uppercase tracking-[0.3em] rounded-xl hover:bg-gray-200 transition-all shadow-xl flex flex-col items-center"
-                   >
-                     <span>Unlock Special Access</span>
-                     <span className="text-[8px] normal-case tracking-normal opacity-60">विशेष एक्सेस लें</span>
-                   </button>
-                   <div className="px-6 py-3 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-gray-700 font-mono">
-                     Special Membership Required
-                   </div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-500/20 border border-green-400/30 text-green-400 rounded-full text-[9px] font-mono font-black uppercase tracking-widest">
+                  👑 SOVEREIGN CLEARANCE / प्रीमियम संप्रभु प्राप्त है
                 </div>
+                <h2 className="text-3xl font-display font-black text-white italic tracking-tighter uppercase leading-none pt-1">Premium Access Active</h2>
+                <p className="text-zinc-400 text-sm font-medium leading-relaxed max-w-xl">
+                  Your payment confirmation has been successfully matched against the manual ledger and approved. You hold complete administrative & special membership permissions. Enjoy limitless files, strategies, and shadow channels.
+                </p>
               </div>
             </div>
           </Card>
@@ -2433,21 +2854,24 @@ function NoContent({ label }: { label: string }) {
   );
 }
 
-function VideoCard({ video, onClick, isLocked }: { video: VideoArchive, onClick: () => void, isLocked?: boolean, key?: React.Key }) {
+function VideoCard({ video, onClick, isLocked, onUnlockClick }: { video: VideoArchive, onClick: () => void, isLocked?: boolean, onUnlockClick?: () => void, key?: React.Key }) {
   return (
-    <div className={`group cursor-pointer ${isLocked ? 'grayscale opacity-60' : ''}`} onClick={isLocked ? undefined : onClick}>
+    <div className={`group cursor-pointer ${isLocked ? 'opacity-80' : ''}`} onClick={isLocked ? onUnlockClick : onClick}>
       <div className="relative aspect-video rounded-[32px] overflow-hidden mb-6 border border-white/5 shadow-2xl transition-all group-hover:scale-[1.02]">
-        <img src={video.thumbnail} alt={video.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+        <img src={video.thumbnail} alt={video.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 grayscale group-hover:grayscale-0" />
         <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
           {isLocked ? (
-            <div className="w-16 h-16 bg-neutral-900 border border-white/10 rounded-full flex items-center justify-center shadow-2xl scale-75 group-hover:scale-100 transition-transform"><Lock className="w-6 h-6 text-gray-400" /></div>
+            <div className="w-16 h-16 bg-neutral-900 border border-amber-500/50 rounded-full flex flex-col items-center justify-center shadow-2xl scale-75 group-hover:scale-100 transition-transform">
+              <Lock className="w-5 h-5 text-amber-500 mb-0.5" />
+              <div className="text-[7px] font-mono text-amber-500 uppercase tracking-widest font-black">Unlock</div>
+            </div>
           ) : (
             <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-2xl scale-75 group-hover:scale-100 transition-transform"><PlayCircle className="w-8 h-8 text-black" /></div>
           )}
         </div>
         {video.isPremium && (
-          <div className="absolute top-4 right-4 px-4 py-1.5 bg-white text-black text-[10px] font-bold uppercase tracking-wider rounded-xl flex items-center gap-2 shadow-lg">
-            Premium <Zap size={10} fill="black" />
+          <div className="absolute top-4 right-4 px-4 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 text-black text-[10px] font-mono font-black uppercase tracking-wider rounded-xl flex items-center gap-1.5 shadow-lg">
+            Sovereign <Zap size={10} fill="black" />
           </div>
         )}
       </div>
@@ -2461,17 +2885,17 @@ function VideoCard({ video, onClick, isLocked }: { video: VideoArchive, onClick:
             <span>{video.duration}</span>
           </div>
         </div>
-        <button className={`w-full py-4 border border-white/10 text-xs font-bold uppercase tracking-wider rounded-2xl transition-all ${isLocked ? 'text-gray-600 bg-white/5 cursor-not-allowed' : 'text-gray-400 group-hover:bg-white group-hover:text-black'}`}>
-          {isLocked ? 'Locked' : 'Watch Now'}
+        <button className={`w-full py-4 border rounded-2xl transition-all text-xs font-mono font-black uppercase tracking-widest ${isLocked ? 'text-amber-500 border-amber-500/30 bg-amber-500/5 hover:bg-amber-500 hover:text-black hover:border-amber-500' : 'text-gray-400 border-white/10 group-hover:bg-white group-hover:text-black'}`}>
+          {isLocked ? '🔒 UNLOCK PREMIUM' : 'Watch Now'}
         </button>
       </div>
     </div>
   );
 }
 
-function BookCard({ book, onClick, isLocked }: { book: LibraryBook, onClick: () => void, isLocked?: boolean, key?: React.Key }) {
+function BookCard({ book, onClick, isLocked, onUnlockClick }: { book: LibraryBook, onClick: () => void, isLocked?: boolean, onUnlockClick?: () => void, key?: React.Key }) {
   return (
-    <div className={`flex flex-col sm:flex-row gap-6 md:gap-8 group cursor-pointer ${isLocked ? 'grayscale opacity-60' : ''}`} onClick={isLocked ? undefined : onClick}>
+    <div className={`flex flex-col sm:flex-row gap-6 md:gap-8 group cursor-pointer ${isLocked ? 'opacity-80' : ''}`} onClick={isLocked ? onUnlockClick : onClick}>
       <div className="w-full sm:w-40 h-56 md:h-56 bg-neutral-900 border border-white/5 rounded-3xl shadow-2xl transition-all group-hover:-translate-y-2 flex flex-col p-0 overflow-hidden shrink-0 relative">
         {book.coverUrl ? (
           <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 font-display" />
@@ -2482,13 +2906,14 @@ function BookCard({ book, onClick, isLocked }: { book: LibraryBook, onClick: () 
         )}
         
         {isLocked && (
-          <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-[2px]">
-            <Lock className="w-10 h-10 text-white/40" />
+          <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center backdrop-blur-[2px]">
+            <Lock className="w-8 h-8 text-amber-500 mb-1" />
+            <span className="text-[8px] font-mono text-amber-500 font-black uppercase tracking-widest">Premium</span>
           </div>
         )}
 
         {book.isPremium && (
-          <div className="absolute top-4 right-4 w-8 h-8 bg-white rounded-xl flex items-center justify-center shadow-xl z-10">
+          <div className="absolute top-4 right-4 w-8 h-8 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-xl flex items-center justify-center shadow-xl z-10">
             <Zap size={12} className="text-black" fill="black" />
           </div>
         )}
@@ -2499,8 +2924,8 @@ function BookCard({ book, onClick, isLocked }: { book: LibraryBook, onClick: () 
         </div>
         <h3 className="text-3xl font-display font-black text-white tracking-tight leading-tight">{book.title}</h3>
         <p className="text-sm text-gray-500 leading-relaxed line-clamp-4 font-medium italic">"{book.excerpt}"</p>
-        <button className={`pt-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-all flex items-center gap-2 ${isLocked ? 'text-gray-700 border-white/5 cursor-not-allowed' : 'text-white border-white/20 hover:border-white'}`}>
-          {isLocked ? 'Access Restricted' : 'Read Manuscript'} <ChevronRight className="w-4 h-4" />
+        <button className={`pt-2 text-xs font-mono font-black uppercase tracking-wider border-b-2 transition-all flex items-center gap-2 ${isLocked ? 'text-amber-500 border-amber-500/20 hover:border-amber-500/80' : 'text-white border-white/20 hover:border-white'}`}>
+          {isLocked ? '🔒 UNLOCK ASSET' : 'Read Manuscript'} <ChevronRight className="w-4 h-4" />
         </button>
       </div>
     </div>
