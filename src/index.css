@@ -12,11 +12,18 @@
 }
 
 @layer base {
+  html, body {
+    overscroll-behavior-y: contain;
+    overscroll-behavior-x: none;
+  }
   body {
     @apply font-sans antialiased bg-[#000000] text-gray-200 selection:bg-white selection:text-black min-h-screen flex flex-col;
   }
   h1, h2, h3, h4, h5, h6 {
     @apply font-display tracking-tight text-white;
+  }
+  .overflow-y-auto, .overflow-auto {
+    overscroll-behavior-y: contain;
   }
 }
 

@@ -703,6 +703,11 @@ function UserManager() {
                       <span className="px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded-md border border-white/5">
                         Details: {u.premiumRequestDetails || 'Standard payment details'}
                       </span>
+                      {u.premiumRequestTransactionId && (
+                        <span className="px-2 py-0.5 bg-amber-500/20 text-yellow-400 rounded-md border border-amber-500/30">
+                          TXN ID / UTR: <strong className="select-all font-bold text-white tracking-widest block sm:inline-block">{u.premiumRequestTransactionId}</strong>
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

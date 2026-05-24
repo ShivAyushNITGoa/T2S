@@ -46,8 +46,10 @@ export interface UserProfile {
   isStrategist?: boolean;
   premiumRequestStatus?: 'pending' | 'approved' | 'denied';
   premiumRequestPlan?: 'sovereign' | 'elite';
+  premiumRequestPlanName?: string;
   premiumRequestPaymentMethod?: 'card' | 'upi';
   premiumRequestDetails?: string;
+  premiumRequestTransactionId?: string;
   premiumRequestDate?: any;
   bio?: string;
   referredBy?: string;

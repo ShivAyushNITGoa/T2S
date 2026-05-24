@@ -674,7 +674,7 @@ export default function App() {
               streak: 1,
               isAdmin: isAdminUser,
               bio: "",
-              referredBy: storedRef || undefined
+              referredBy: storedRef || ""
             };
             await setDoc(userRef, newProfile).catch(err => {
               handleFirestoreError(err, OperationType.CREATE, `users/${firebaseUser.uid}`);
@@ -1922,6 +1922,7 @@ function AscensionModal({ onClose, profile }: { onClose: () => void, profile: Us
   const [cardCvv, setCardCvv] = useState('');
   const [cardName, setCardName] = useState('');
   const [upiAddress, setUpiAddress] = useState('');
+  const [transactionId, setTransactionId] = useState('');
   
   // Legal/Intel-Handshake Declarations & Consents
   const [consentOne, setConsentOne] = useState(false);
@@ -1968,10 +1969,12 @@ function AscensionModal({ onClose, profile }: { onClose: () => void, profile: Us
       await updateDoc(doc(db, 'users', profile.uid), { 
         premiumRequestStatus: 'pending',
         premiumRequestPlan: selectedPlan,
+        premiumRequestPlanName: selectedPlan === 'sovereign' ? 'Sovereign Pass' : 'Elite Consult',
         premiumRequestPaymentMethod: paymentMethod,
         premiumRequestDetails: paymentMethod === 'card' 
           ? `Card ending in ${cardNumber.trim().slice(-4)}`
           : `UPI ID: ${upiAddress}`,
+        premiumRequestTransactionId: transactionId.trim(),
         premiumRequestDate: serverTimestamp()
       });
       setStep(4);
@@ -1987,6 +1990,7 @@ function AscensionModal({ onClose, profile }: { onClose: () => void, profile: Us
 
   const isFormValid = () => {
     if (!consentOne || !consentTwo) return false;
+    if (transactionId.trim().length < 4) return false;
     if (paymentMethod === 'card') {
       return cardNumber.trim().length >= 12 && cardExpiry.trim().length >= 4 && cardCvv.trim().length >= 3 && cardName.trim().length > 3;
     } else {
@@ -2244,12 +2248,14 @@ function AscensionModal({ onClose, profile }: { onClose: () => void, profile: Us
                       </div>
                       <div className="space-y-1.5 flex-1">
                         <div className="text-[10px] bg-amber-500/10 border border-amber-500/30 text-amber-500 px-2.5 py-0.5 rounded-full font-mono font-black uppercase tracking-wider w-fit mx-auto md:mx-0">UPI PAY LINK PROTOCOL</div>
-                        <h4 className="text-xs font-black text-white uppercase font-mono">SCAN MOCK QR TO PAY UPI</h4>
-                        <p className="text-[10px] text-zinc-400 leading-relaxed font-semibold">Verify the scan via any payment scanner like BHIM, PhonePe, paytm or Google Pay. Mock secure ledger resolves automatically.</p>
+                        <h4 className="text-xs font-black text-white uppercase font-mono">SCAN PROTOCOL QR TO PAY</h4>
+                        <p className="text-[10px] text-zinc-400 leading-relaxed font-semibold">
+                          Scan with BHIM, Google Pay, PhonePe, Paytm or any UPI scanner to transfer ₹{getPlanPrice().inr}. Recipient: <span className="text-amber-400 font-bold">akcandradipti@upi</span>
+                        </p>
                       </div>
                     </div>
                     <div>
-                      <label className="text-[9px] font-mono text-zinc-400 uppercase font-black tracking-wide block mb-1">Enter your UPI ID Address (लॉगिन UPI एड्रेस)</label>
+                      <label className="text-[9px] font-mono text-zinc-400 uppercase font-black tracking-wide block mb-1">Your Sender UPI ID (लॉगिन UPI एड्रेस)</label>
                       <input 
                         type="text" 
                         placeholder="sovereign@bhim"
@@ -2260,6 +2266,24 @@ function AscensionModal({ onClose, profile }: { onClose: () => void, profile: Us
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* Unique Transaction ID Field */}
+              <div className="p-4 rounded-2xl bg-amber-500/[0.02] border border-amber-500/30 space-y-2 text-left">
+                <label className="text-[10px] font-mono text-amber-400 uppercase font-black tracking-widest block flex items-center gap-1.5">
+                  <span className="inline-block w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></span>
+                  Transaction Reference ID / UTR / लेनदेन आईडी (MANDATORY)
+                </label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. UPI8249618451 / UTR-95817204958"
+                  value={transactionId}
+                  onChange={(e) => setTransactionId(e.target.value)}
+                  className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 focus:border-amber-500 rounded-xl text-white font-mono text-sm placeholder-zinc-800 outline-none transition-all uppercase tracking-wider"
+                />
+                <p className="text-[9px] text-zinc-500 font-sans font-semibold leading-relaxed">
+                  भुगतान पूरा करने के बाद प्राप्त UPI संदर्भांक (12 अंकों का UTR / लेनदेन संदर्भांक) यहाँ अवश्य दर्ज करें। एडमिन इस आईडी का मिलान करके आपकी संप्रभु पहुँच स्वीकृत करेंगे।
+                </p>
               </div>
 
               {/* Declarations checklist (Mandatory Confirmation) */}
@@ -2564,6 +2588,11 @@ function ProfileView({ profile, rank, onOpenAscension }: { profile: UserProfile,
                     <div>
                       <span className="text-zinc-600 font-bold">Details:</span> <strong className="text-zinc-300 font-mono">{profile.premiumRequestDetails || 'Cash/UPI'}</strong>
                     </div>
+                    {profile.premiumRequestTransactionId && (
+                      <div>
+                        <span className="text-zinc-600 font-bold">Transaction ID:</span> <strong className="text-amber-400 font-mono bg-amber-500/10 px-1.5 py-0.5 border border-amber-500/20 rounded">{profile.premiumRequestTransactionId}</strong>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
