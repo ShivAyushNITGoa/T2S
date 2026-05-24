@@ -740,24 +740,52 @@ function UserManager() {
         
         <div className="grid grid-cols-1 gap-3">
           {items.map(u => (
-            <div key={u.uid} className="p-4 bg-white/5 rounded-2xl border border-white/5 flex justify-between items-center text-left">
-              <div className="flex items-center gap-4">
-                <img src={u.photoURL} className="w-10 h-10 rounded-full border border-white/10 grayscale" alt="" />
-                <div>
-                  <div className="font-bold text-white/80 leading-tight text-sm flex items-center gap-2">
-                    {u.displayName}
-                    {u.isAdmin && <span className="text-[8px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded uppercase font-black tracking-widest">Admin</span>}
-                    {u.isStrategist && <span className="text-[8px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded uppercase font-black tracking-widest">Premium</span>}
-                  </div>
-                  <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest font-mono pt-0.5">{u.email}</div>
-                  {u.premiumRequestStatus && u.premiumRequestStatus !== 'pending' && (
-                    <div className="text-[9px] font-mono font-semibold text-zinc-400 pt-1">
-                      Last request status: <span className={u.premiumRequestStatus === 'approved' ? 'text-green-400' : 'text-red-400'}>{u.premiumRequestStatus.toUpperCase()}</span>
+            <div key={u.uid} className="p-4 bg-white/5 rounded-2xl border border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 text-left">
+              <div className="flex-1 space-y-2">
+                <div className="flex items-center gap-4">
+                  <img src={u.photoURL} className="w-10 h-10 rounded-full border border-white/10 grayscale" alt="" />
+                  <div>
+                    <div className="font-bold text-white/80 leading-tight text-sm flex items-center gap-2">
+                      {u.displayName}
+                      {u.isAdmin && <span className="text-[8px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded uppercase font-black tracking-widest">Admin</span>}
+                      {u.isStrategist && <span className="text-[8px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded uppercase font-black tracking-widest">Premium</span>}
                     </div>
-                  )}
+                    <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest font-mono pt-0.5">{u.email}</div>
+                    {u.premiumRequestStatus && (
+                      <div className="text-[9px] font-mono font-semibold text-zinc-400 pt-1">
+                        Request status: <span className={u.premiumRequestStatus === 'approved' ? 'text-green-400' : u.premiumRequestStatus === 'pending' ? 'text-amber-400 font-bold animate-pulse' : 'text-red-400'}>{u.premiumRequestStatus.toUpperCase()}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
+
+                {u.premiumRequestPlan && (
+                  <div className="mt-3 p-3 bg-zinc-950/60 rounded-xl border border-white/5 space-y-1.5 max-w-xl">
+                    <div className="text-[9px] font-mono font-black uppercase tracking-widest text-amber-500 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
+                      Submitted Payment Form / प्रेषित भुगतान विवरण
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 font-mono text-[9.5px]">
+                      <div>
+                        <span className="text-zinc-500">Plan:</span> <strong className="text-white">{u.premiumRequestPlan === 'elite' ? 'Elite Consult 1-on-1' : 'Sovereign Pass'}</strong>
+                      </div>
+                      <div>
+                        <span className="text-zinc-500">Method:</span> <strong className="text-white">{(u.premiumRequestPaymentMethod || 'UPI').toUpperCase()}</strong>
+                      </div>
+                      <div className="sm:col-span-2">
+                        <span className="text-zinc-500">Details:</span> <strong className="text-zinc-300">{u.premiumRequestDetails || 'Standard payment details'}</strong>
+                      </div>
+                      {u.premiumRequestTransactionId && (
+                        <div className="sm:col-span-2 pt-1 border-t border-white/5 mt-1">
+                          <span className="text-zinc-500">Transaction ID / UTR:</span>{' '}
+                          <strong className="text-amber-400 select-all tracking-wider">{u.premiumRequestTransactionId}</strong>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="flex items-center gap-3 shrink-0">
+              <div className="flex items-center gap-3 shrink-0 self-end md:self-center">
                 <button 
                   onClick={() => toggleStrategist(u)}
                   className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${u.isStrategist ? 'bg-white text-black border-white' : 'bg-white/5 text-gray-500 border-white/10 hover:border-white/50 hover:text-white'}`}
