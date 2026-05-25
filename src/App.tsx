@@ -1091,7 +1091,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#000000] text-gray-200 flex font-sans selection:bg-purple-500/30">
+    <div className="h-screen w-screen overflow-hidden bg-[#000000] text-gray-200 flex font-sans selection:bg-purple-500/30">
       <div className="fixed inset-0 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] opacity-30 z-0" />
       
       {/* Mobile Overlay */}
@@ -1179,8 +1179,8 @@ export default function App() {
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col relative z-10">
-        <header className="h-20 md:h-24 border-b border-white/5 bg-[#050505]/80 backdrop-blur-md flex items-center justify-between px-6 md:px-10 sticky top-0 z-30">
+      <main className="flex-1 flex flex-col h-full min-h-0 min-w-0 overflow-hidden relative z-10">
+        <header className="h-20 md:h-24 border-b border-white/5 bg-[#050505]/80 backdrop-blur-md flex items-center justify-between px-6 md:px-10 sticky top-0 z-30 shrink-0">
           <div className="flex items-center gap-2 md:gap-4">
             <button onClick={() => setSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-white/5 rounded-lg transition-colors">
               {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -1193,15 +1193,17 @@ export default function App() {
             {profile && (profile.isStrategist || profile.isAdmin) ? (
               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg text-[9px] font-black uppercase tracking-wider">
                 <Zap className="w-3 h-3 text-green-400 fill-green-400 animate-pulse" />
-                <span>Premium / संप्रभु</span>
+                <span className="hidden sm:inline">Premium / संप्रभु</span>
+                <span className="sm:hidden">Premium</span>
               </div>
             ) : (
               <button
                 onClick={() => setIsAscensionOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:scale-[1.03] text-black rounded-lg text-[9px] font-black uppercase tracking-wider shadow-[0_0_15px_rgba(245,158,11,0.2)] transition-all cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:scale-[1.03] text-black rounded-lg text-[9px] font-black uppercase tracking-wider shadow-[0_0_15px_rgba(245,158,11,0.2)] transition-all cursor-pointer shrink-0"
               >
-                <Zap className="w-3 h-3 fill-black text-black" />
-                <span>Request Premium / प्रीमियम अनलॉक</span>
+                <Zap className="w-3 h-3 fill-black text-black shrink-0" />
+                <span className="hidden md:inline">Request Premium / प्रीमियम अनलॉक</span>
+                <span className="inline md:hidden">Unlock Premium</span>
               </button>
             )}
             <div className="hidden sm:flex flex-col items-end">
@@ -1214,7 +1216,7 @@ export default function App() {
           </div>
         </header>
 
-        <section className="flex-1 overflow-y-auto p-6 md:p-12 lg:p-16 max-w-7xl w-full mx-auto">
+        <section className="flex-1 overflow-y-auto min-h-0 p-6 md:p-12 lg:p-16 max-w-7xl w-full mx-auto">
           {quotaError && (
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }} 
