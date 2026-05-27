@@ -345,7 +345,7 @@ export default function GatewayView({
               <div className="space-y-5 pt-2 border-t border-zinc-800 text-sm font-mono">
                 <div className="flex items-baseline justify-between">
                   <span className="text-zinc-400 font-bold">HUNTERS AWAKENED:</span>
-                  <span className="text-xl font-black font-sans text-red-400">1,500+ Subscribers</span>
+                  <span className="text-xl font-black font-sans text-red-400">15,000+ Subscribers</span>
                 </div>
                 <p className="text-zinc-250 font-semibold text-xs leading-relaxed">
                   <strong className="text-zinc-100 font-bold">Strategy:</strong> 15-20 मिनट की गहरी मनोवैज्ञानिक मास्टरक्लास और 30-सेकंड के तीखे 'Reality Checks' (Reels)।

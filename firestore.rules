@@ -32,6 +32,13 @@ service cloud.firestore {
              (data.get('photoURL', '') is string && data.get('photoURL', '').size() <= 2000000) && // Allow for large base64 if needed, though 800KB is the UI limit
              (data.get('referredBy', '') is string) &&
              (data.get('isStrategist', false) is bool) &&
+             (data.get('premiumRequestStatus', '') is string && data.get('premiumRequestStatus', '').size() <= 50) &&
+             (data.get('premiumRequestPlan', '') is string && data.get('premiumRequestPlan', '').size() <= 50) &&
+             (data.get('premiumRequestPlanName', '') is string && data.get('premiumRequestPlanName', '').size() <= 200) &&
+             (data.get('premiumRequestPaymentMethod', '') is string && data.get('premiumRequestPaymentMethod', '').size() <= 50) &&
+             (data.get('premiumRequestDetails', '') is string && data.get('premiumRequestDetails', '').size() <= 1000) &&
+             (data.get('premiumRequestTransactionId', '') is string && data.get('premiumRequestTransactionId', '').size() <= 200) &&
+             (data.get('premiumRequestDate', request.time) is timestamp || data.get('premiumRequestDate', null) == null) &&
              (data.get('lastLoginAt', request.time) is timestamp || data.get('lastLoginAt', null) == null) &&
              (data.get('lastCompletedAt', request.time) is timestamp || data.get('lastCompletedAt', null) == null) &&
              (data.get('dailyReflections', {}) is map) &&
@@ -43,7 +50,14 @@ service cloud.firestore {
       allow list: if isSignedIn();
       allow create: if isOwner(userId) && isValidUser(request.resource.data);
       allow update: if (isOwner(userId) && isValidUser(request.resource.data) && (
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['xp', 'level', 'completedDays', 'updatedAt', 'lastLoginAt', 'streak', 'displayName', 'bio', 'photoURL', 'isStrategist', 'presenceDays', 'lastCompletedAt', 'dailyReflections'])
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'xp', 'level', 'completedDays', 'updatedAt', 'lastLoginAt', 'streak', 
+          'displayName', 'bio', 'photoURL', 'isStrategist', 'presenceDays', 
+          'lastCompletedAt', 'dailyReflections',
+          'premiumRequestStatus', 'premiumRequestPlan', 'premiumRequestPlanName', 
+          'premiumRequestPaymentMethod', 'premiumRequestDetails', 'premiumRequestTransactionId', 
+          'premiumRequestDate'
+        ])
       )) || (
         isSignedIn() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['xp', 'updatedAt']) &&
@@ -55,7 +69,9 @@ service cloud.firestore {
           request.resource.data.xp == resource.data.xp + 20 ||
           request.resource.data.xp == resource.data.xp - 20
         )
-      ) || (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isStrategist']));
+      ) || (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'isStrategist', 'premiumRequestStatus'
+      ]));
     }
 
     function isValidPost(data) {
