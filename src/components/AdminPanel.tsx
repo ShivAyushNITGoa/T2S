@@ -15,7 +15,7 @@ import {
 import { db, handleFirestoreError, OperationType, isOfflineError } from '../firebase';
 import { JourneyModule, VideoArchive, LibraryBook, CommunityPost, UserProfile, ShopProduct } from '../types';
 import { RAW_JOURNEY_MODULES } from '../journeyData';
-import { Plus, Edit2, Trash2, X, Save, Film, Book, Map, Zap, ShoppingCart, ArrowLeft, Check } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, Film, Book, Map, Zap, ShoppingCart, ArrowLeft, Check, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function AdminPanel() {
@@ -217,6 +217,15 @@ function ArchiveManager() {
   const [items, setItems] = useState<VideoArchive[]>([]);
   const [editing, setEditing] = useState<Partial<VideoArchive> | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [thumbnailBase64, setThumbnailBase64] = useState<string>('');
+
+  useEffect(() => {
+    if (editing) {
+      setThumbnailBase64(editing.thumbnail || '');
+    } else {
+      setThumbnailBase64('');
+    }
+  }, [editing]);
 
   useEffect(() => {
     if (status) {
@@ -237,11 +246,15 @@ function ArchiveManager() {
 
   const save = async (e: any) => {
     e.preventDefault();
+    if (!thumbnailBase64) {
+      alert("Please upload a thumbnail image from your device.");
+      return;
+    }
     const data = {
       title: e.target.title.value,
       duration: e.target.duration.value,
       views: e.target.views.value,
-      thumbnail: e.target.thumbnail.value,
+      thumbnail: thumbnailBase64,
       videoUrl: e.target.videoUrl.value,
       isPremium: e.target.isPremium.checked,
       createdAt: serverTimestamp()
@@ -373,7 +386,46 @@ function ArchiveManager() {
               <input name="title" defaultValue={editing.title} placeholder="Title" className="w-full bg-white/5 p-3 rounded-xl" required />
               <input name="duration" defaultValue={editing.duration} placeholder="Duration (e.g. 15:00)" className="w-full bg-white/5 p-3 rounded-xl" required />
               <input name="views" defaultValue={editing.views} placeholder="Views" className="w-full bg-white/5 p-3 rounded-xl" required />
-              <input name="thumbnail" defaultValue={editing.thumbnail} placeholder="Thumbnail URL" className="w-full bg-white/5 p-3 rounded-xl" required />
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Thumbnail Image (थंबनेल फोटो) *</label>
+                <div 
+                  onClick={() => document.getElementById('archive-file-upload')?.click()}
+                  className="border border-dashed border-white/15 rounded-2xl p-4 bg-white/5 hover:bg-white/10 hover:border-amber-500/30 transition-all text-center cursor-pointer relative group flex flex-col items-center justify-center min-h-[140px]"
+                >
+                  {thumbnailBase64 ? (
+                    <div className="relative w-full max-w-[200px] aspect-video rounded-xl overflow-hidden border border-white/10 shadow-lg shrink-0">
+                      <img src={thumbnailBase64} alt="Preview" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Upload className="w-5 h-5 text-white/80" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <Upload className="w-6 h-6 text-white/45 mx-auto mb-1 animate-pulse" />
+                      <p className="text-xs font-bold text-white/70">Upload Thumbnail</p>
+                      <p className="text-[8px] text-white/30 uppercase font-black tracking-widest">JPG, PNG, WEBP from device</p>
+                    </div>
+                  )}
+                  <input 
+                    id="archive-file-upload" 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                          if (ev.target?.result) {
+                            setThumbnailBase64(ev.target.result as string);
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                </div>
+              </div>
               <input name="videoUrl" defaultValue={editing.videoUrl} placeholder="YouTube URL or Embed ID" className="w-full bg-white/5 p-3 rounded-xl" required />
               <label className="flex items-center gap-3 p-3 bg-white/5 rounded-xl cursor-pointer">
                 <input type="checkbox" name="isPremium" defaultChecked={editing.isPremium} className="w-4 h-4 accent-white" />
@@ -393,6 +445,15 @@ function ArchiveManager() {
 function LibraryManager() {
   const [items, setItems] = useState<LibraryBook[]>([]);
   const [editing, setEditing] = useState<Partial<LibraryBook> | null>(null);
+  const [coverBase64, setCoverBase64] = useState<string>('');
+
+  useEffect(() => {
+    if (editing) {
+      setCoverBase64(editing.coverUrl || '');
+    } else {
+      setCoverBase64('');
+    }
+  }, [editing]);
 
   useEffect(() => {
     return onSnapshot(query(collection(db, 'library'), orderBy('title', 'asc')), (snap) => {
@@ -415,13 +476,17 @@ function LibraryManager() {
 
   const save = async (e: any) => {
     e.preventDefault();
+    if (!coverBase64) {
+      alert("Please upload a cover image from your device.");
+      return;
+    }
     const data = {
       title: e.target.title.value,
       author: e.target.author.value,
       category: e.target.category.value,
       excerpt: e.target.excerpt.value,
       fileUrl: e.target.fileUrl.value,
-      coverUrl: e.target.coverUrl.value,
+      coverUrl: coverBase64,
       isPremium: e.target.isPremium.checked
     };
     try {
@@ -579,7 +644,46 @@ function LibraryManager() {
               <input name="title" defaultValue={editing.title} placeholder="Title" className="w-full bg-white/5 p-3 rounded-xl" required />
               <input name="author" defaultValue={editing.author} placeholder="Author" className="w-full bg-white/5 p-3 rounded-xl" required />
               <input name="category" defaultValue={editing.category} placeholder="Category" className="w-full bg-white/5 p-3 rounded-xl" required />
-              <input name="coverUrl" defaultValue={editing.coverUrl} placeholder="Cover Image URL" className="w-full bg-white/5 p-3 rounded-xl" required />
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Book Cover Image (कवर फोटो) *</label>
+                <div 
+                  onClick={() => document.getElementById('book-cover-upload')?.click()}
+                  className="border border-dashed border-white/15 rounded-2xl p-4 bg-white/5 hover:bg-white/10 hover:border-amber-500/30 transition-all text-center cursor-pointer relative group flex flex-col items-center justify-center min-h-[140px]"
+                >
+                  {coverBase64 ? (
+                    <div className="relative w-full max-w-[125px] aspect-[3/4] rounded-xl overflow-hidden border border-white/10 shadow-lg shrink-0">
+                      <img src={coverBase64} alt="Preview" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Upload className="w-5 h-5 text-white/80" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <Upload className="w-6 h-6 text-white/45 mx-auto mb-1 animate-pulse" />
+                      <p className="text-xs font-bold text-white/70">Upload Book Cover</p>
+                      <p className="text-[8px] text-white/30 uppercase font-black tracking-widest">JPG, PNG, WEBP from device</p>
+                    </div>
+                  )}
+                  <input 
+                    id="book-cover-upload" 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                          if (ev.target?.result) {
+                            setCoverBase64(ev.target.result as string);
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                </div>
+              </div>
               <input name="fileUrl" defaultValue={editing.fileUrl} placeholder="Google Drive Sharing URL" className="w-full bg-white/5 p-3 rounded-xl" required />
               <div className="text-[10px] text-white/40 bg-white/5 p-4 rounded-xl border border-white/10 mb-4 space-y-2 font-mono">
                 <p className="font-bold text-white/60">REQUIRED SETUP FOR GOOGLE DRIVE:</p>
