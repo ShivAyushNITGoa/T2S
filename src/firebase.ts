@@ -46,6 +46,21 @@ interface FirestoreErrorInfo {
   }
 }
 
+export function isOfflineError(error: unknown): boolean {
+  if (!error) return false;
+  const msg = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  const code = (error as any)?.code || '';
+  return (
+    msg.includes('offline') || 
+    msg.includes('unavailable') || 
+    msg.includes('failed-precondition') || 
+    msg.includes('failed to get document') ||
+    msg.includes('network') ||
+    code === 'unavailable' ||
+    code === 'failed-precondition'
+  );
+}
+
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
@@ -80,6 +95,18 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
       }
     }
     console.warn("Firestore Quota Exceeded detected. Handling gracefully via UI warning and cache fallback, preventing crash.");
+    return;
+  }
+
+  if (isOfflineError(error)) {
+    if (typeof window !== 'undefined') {
+      try {
+        (window as any).dispatchEvent(new (window as any).CustomEvent('firestore-offline', { detail: errInfo }));
+      } catch (e) {
+        console.error("Failed to dispatch custom firestore-offline event:", e);
+      }
+    }
+    console.warn("Firestore Offline status detected. Handling gracefully, continuing offline mode...");
     return;
   }
 

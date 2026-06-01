@@ -12,7 +12,7 @@ import {
   getDocs,
   serverTimestamp 
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../firebase';
+import { db, handleFirestoreError, OperationType, isOfflineError } from '../firebase';
 import { JourneyModule, VideoArchive, LibraryBook, CommunityPost, UserProfile, ShopProduct } from '../types';
 import { RAW_JOURNEY_MODULES } from '../journeyData';
 import { Plus, Edit2, Trash2, X, Save, Film, Book, Map, Zap, ShoppingCart, ArrowLeft, Check } from 'lucide-react';
@@ -72,7 +72,11 @@ function JourneyManager() {
   useEffect(() => {
     return onSnapshot(query(collection(db, 'journey'), orderBy('day', 'asc')), (snap) => {
       setModules(snap.docs.map(d => ({ id: d.id, ...d.data() } as JourneyModule)));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'journey'));
+    }, (error) => {
+      if (!isOfflineError(error)) {
+        handleFirestoreError(error, OperationType.LIST, 'journey');
+      }
+    });
   }, []);
 
   const save = async (e: any) => {
@@ -224,7 +228,11 @@ function ArchiveManager() {
   useEffect(() => {
     return onSnapshot(query(collection(db, 'archives'), orderBy('title', 'asc')), (snap) => {
       setItems(snap.docs.map(d => ({ id: d.id, ...d.data() } as VideoArchive)));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'archives'));
+    }, (error) => {
+      if (!isOfflineError(error)) {
+        handleFirestoreError(error, OperationType.LIST, 'archives');
+      }
+    });
   }, []);
 
   const save = async (e: any) => {
@@ -389,7 +397,11 @@ function LibraryManager() {
   useEffect(() => {
     return onSnapshot(query(collection(db, 'library'), orderBy('title', 'asc')), (snap) => {
       setItems(snap.docs.map(d => ({ id: d.id, ...d.data() } as LibraryBook)));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'library'));
+    }, (error) => {
+      if (!isOfflineError(error)) {
+        handleFirestoreError(error, OperationType.LIST, 'library');
+      }
+    });
   }, []);
 
   const [status, setStatus] = useState<string | null>(null);
@@ -598,7 +610,11 @@ function PostModerator() {
   useEffect(() => {
     return onSnapshot(query(collection(db, 'posts'), orderBy('createdAt', 'desc')), (snap) => {
       setItems(snap.docs.map(d => ({ id: d.id, ...d.data() } as CommunityPost)));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'posts'));
+    }, (error) => {
+      if (!isOfflineError(error)) {
+        handleFirestoreError(error, OperationType.LIST, 'posts');
+      }
+    });
   }, []);
 
   return (
@@ -635,7 +651,11 @@ function UserManager() {
   useEffect(() => {
     return onSnapshot(collection(db, 'users'), (snap) => {
       setItems(snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserProfile)));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'users'));
+    }, (error) => {
+      if (!isOfflineError(error)) {
+        handleFirestoreError(error, OperationType.LIST, 'users');
+      }
+    });
   }, []);
 
   const handleApprove = async (uid: string) => {
@@ -816,7 +836,11 @@ function ShopManager() {
   useEffect(() => {
     return onSnapshot(query(collection(db, 'shop'), orderBy('category', 'asc')), (snap) => {
       setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() } as ShopProduct)));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'shop'));
+    }, (error) => {
+      if (!isOfflineError(error)) {
+        handleFirestoreError(error, OperationType.LIST, 'shop');
+      }
+    });
   }, []);
 
   const save = async (e: any) => {

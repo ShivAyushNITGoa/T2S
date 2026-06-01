@@ -39,7 +39,7 @@ import {
   where,
   getDocs
 } from 'firebase/firestore';
-import { auth, db, handleFirestoreError, OperationType } from './firebase';
+import { auth, db, handleFirestoreError, OperationType, isOfflineError } from './firebase';
 import { UserProfile, CommunityPost, TabType, JourneyModule, VideoArchive, LibraryBook, ShopProduct } from './types';
 import { RAW_JOURNEY_MODULES } from './journeyData';
 import { RANKS, getRankFromXP, getNextRank } from './constants';
@@ -227,7 +227,7 @@ const PresenceCalendar = ({ presenceDays, completedDaysCount }: { presenceDays: 
             {/* Weekly Strip: Last 7 days */}
             <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 md:p-6">
               <div className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-4">Last 7 Days Consistency / पिछले 7 दिन की निरंतरता</div>
-              <div className="grid grid-cols-7 gap-3">
+              <div className="grid grid-cols-7 gap-1.5 sm:gap-3">
                 {Array.from({ length: 7 }).map((_, idx) => {
                   const d = new Date();
                   d.setDate(d.getDate() - (6 - idx));
@@ -312,21 +312,23 @@ const PresenceCalendar = ({ presenceDays, completedDaysCount }: { presenceDays: 
         )}
       </AnimatePresence>
 
-      <div className="mt-8 flex flex-wrap gap-6 items-center border-t border-white/5 pt-6">
-        <div className="flex items-center gap-3">
-          <div className="w-3.5 h-3.5 rounded-lg bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
-          <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Active / सक्रिय</span>
+      <div className="mt-8 flex flex-col sm:flex-row sm:flex-wrap gap-4 sm:gap-6 items-stretch sm:items-center border-t border-white/5 pt-6">
+        <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+          <div className="flex items-center gap-3">
+            <div className="w-3.5 h-3.5 rounded-lg bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
+            <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Active / सक्रिय</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-3.5 h-3.5 rounded-lg bg-white/2 border border-white/5" />
+            <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Inactivity / निष्क्रिय</span>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="w-3.5 h-3.5 rounded-lg bg-white/2 border border-white/5" />
-          <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Inactivity / निष्क्रिय</span>
-        </div>
-        <div className="ml-auto flex items-center gap-4">
-          <div className="bg-amber-500/10 border border-amber-500/20 px-3.5 py-1.5 rounded-xl text-center min-w-[100px]">
+        <div className="sm:ml-auto flex items-center gap-3 sm:gap-4 justify-between sm:justify-start">
+          <div className="bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl text-center flex-1 sm:flex-initial sm:min-w-[100px]">
              <div className="text-[9px] font-black text-amber-500/60 uppercase tracking-widest leading-none mb-1">Total Active</div>
              <div className="text-xs font-bold text-amber-500">{presenceDays.length} Days</div>
           </div>
-          <div className="bg-white/5 border border-white/10 px-3.5 py-1.5 rounded-xl text-center min-w-[100px]">
+          <div className="bg-white/5 border border-white/10 px-3 py-1.5 rounded-xl text-center flex-1 sm:flex-initial sm:min-w-[100px]">
              <div className="text-[9px] font-black text-white/40 uppercase tracking-widest leading-none mb-1">Milestones</div>
              <div className="text-xs font-bold text-white uppercase">{completedDaysCount}/100</div>
           </div>
@@ -449,7 +451,7 @@ const JourneyProgressCalendar = ({ completedDays }: { completedDays: number[] })
             exit={{ opacity: 0, height: 0 }}
           >
             {/* 100-Day Matrix: 10 rows of 10 cols */}
-            <div className="grid grid-cols-10 gap-1.5 md:gap-2.5">
+            <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5 md:gap-2.5">
               {Array.from({ length: 100 }).map((_, idx) => {
                 const dayNum = idx + 1;
                 const isCompleted = completedDays.includes(dayNum);
@@ -642,45 +644,41 @@ export default function App() {
         const adminRef = doc(db, 'admins', firebaseUser.uid);
         
         try {
-          // Check admin status once at login
-          const adminSnap = await getDoc(adminRef).catch(err => {
-            handleFirestoreError(err, OperationType.GET, `admins/${firebaseUser.uid}`);
-            throw err;
-          });
-          const isAdminUser = adminSnap.exists() || firebaseUser.email === 'shivshivamxyz@gmail.com';
+          // Check admin status once at login (with offline resilience)
+          let isAdminUser = firebaseUser.email === 'shivshivamxyz@gmail.com';
+          try {
+            const adminSnap = await getDoc(adminRef);
+            isAdminUser = adminSnap.exists() || firebaseUser.email === 'shivshivamxyz@gmail.com';
+          } catch (err: any) {
+            console.warn("Could not check admin status directly from Firestore:", err);
+            if (!isOfflineError(err)) {
+              handleFirestoreError(err, OperationType.GET, `admins/${firebaseUser.uid}`);
+            }
+          }
           
           // Initial fetch & Streak Calculation
-          const userSnap = await getDoc(userRef).catch(err => {
-            handleFirestoreError(err, OperationType.GET, `users/${firebaseUser.uid}`);
-            throw err;
-          });
+          let userSnap: any = null;
+          let isOffline = false;
+          try {
+            userSnap = await getDoc(userRef);
+          } catch (err: any) {
+            console.warn("Could not fetch user profile directly from Firestore:", err);
+            isOffline = isOfflineError(err);
+            if (!isOffline) {
+              handleFirestoreError(err, OperationType.GET, `users/${firebaseUser.uid}`);
+            }
+          }
           
-          const now = new Date();
-          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+          let profileData: any = null;
 
-          if (!userSnap.exists()) {
-            const storedRef = localStorage.getItem('t2s_referral');
-            const newProfile: UserProfile = {
-              uid: firebaseUser.uid,
-              email: firebaseUser.email || '',
-              displayName: firebaseUser.displayName || 'Anonymous User',
-              photoURL: firebaseUser.photoURL || '',
-              xp: 0,
-              level: 1,
-              completedDays: [],
-              presenceDays: [getLocalDateString()],
-              updatedAt: serverTimestamp(),
-              lastLoginAt: serverTimestamp(),
-              streak: 1,
-              isAdmin: isAdminUser,
-              bio: "",
-              referredBy: storedRef || ""
-            };
-            await setDoc(userRef, newProfile).catch(err => {
-              handleFirestoreError(err, OperationType.CREATE, `users/${firebaseUser.uid}`);
-              throw err;
-            });
-          } else {
+          if (userSnap && userSnap.exists()) {
+            profileData = { uid: firebaseUser.uid, ...userSnap.data() };
+            // Cache the profile locally for future offline loads
+            localStorage.setItem('t2s_profile_cache_' + firebaseUser.uid, JSON.stringify(profileData));
+            
+            // Execute daily login / streak checks since we are online
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
             const userData = userSnap.data();
             const lastLogin = userData.lastLoginAt?.toDate?.() || new Date(0);
             const lastLoginDate = new Date(lastLogin.getFullYear(), lastLogin.getMonth(), lastLogin.getDate()).getTime();
@@ -700,7 +698,6 @@ export default function App() {
             }
 
             // --- TFS Strike System check ---
-            // If the user has completed days, check if they missed 2 consecutive calendar days
             if (userData.completedDays && userData.completedDays.length > 0) {
               const lastCompleted = userData.lastCompletedAt?.toDate?.() || null;
               if (lastCompleted) {
@@ -709,33 +706,73 @@ export default function App() {
                 const daysSinceLastSuccess = Math.floor((todayDateOnly.getTime() - lastCompletedDateOnly.getTime()) / (1000 * 60 * 60 * 24));
                 
                 if (daysSinceLastSuccess >= 3) {
-                  // Strike System Reset! Missed 2 consecutive full calendar days
                   updates.completedDays = [];
                   updates.lastCompletedAt = null;
                   updates.streak = 0;
                   localStorage.setItem('t2s_reset_notice', 'true');
                 }
               } else {
-                // Retroactively set lastCompletedAt to avoid unfair immediate resets for old users
                 updates.lastCompletedAt = serverTimestamp();
               }
             }
             
-            // Always update presence if missing, or update streak/lastLogin if 1+ day passed or when reset triggers
             if (updates.presenceDays || diffDays >= 1 || updates.completedDays !== undefined) {
               await updateDoc(userRef, updates).catch(err => {
-                handleFirestoreError(err, OperationType.UPDATE, `users/${firebaseUser.uid}`);
-                throw err;
+                if (!isOfflineError(err)) {
+                  handleFirestoreError(err, OperationType.UPDATE, `users/${firebaseUser.uid}`);
+                }
               });
+            }
+          } else {
+            // Fallback: load from cache since we are offline or document is not fetched
+            const cached = localStorage.getItem('t2s_profile_cache_' + firebaseUser.uid);
+            if (cached) {
+              try {
+                profileData = JSON.parse(cached);
+                console.log("Successfully loaded profile from local cache for offline usage:", profileData);
+              } catch (parseErr) {
+                console.error("Failed to parse cached profile data:", parseErr);
+              }
+            }
+            
+            // If they are a first-time user but offline with no cache, construct a resilient default
+            if (!profileData) {
+              profileData = {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email || '',
+                displayName: firebaseUser.displayName || 'Anonymous User',
+                photoURL: firebaseUser.photoURL || '',
+                xp: 0,
+                level: 1,
+                completedDays: [],
+                presenceDays: [getLocalDateString()],
+                updatedAt: new Date().toISOString(),
+                lastLoginAt: new Date().toISOString(),
+                streak: 1,
+                isAdmin: isAdminUser,
+                bio: "Offline mode.",
+                referredBy: ""
+              };
             }
           }
 
-          // Listener for profile updates (isStrategist, displayName, etc)
+          // Initial set to display the profile immediately
+          setProfile({ ...profileData, isAdmin: isAdminUser } as UserProfile);
+
+          // Listener for profile updates (works background-synced, handles offline reconnect automatically)
           unsubProfile = onSnapshot(userRef, (snap) => {
             if (snap.exists()) {
-              setProfile({ ...snap.data(), isAdmin: isAdminUser } as UserProfile);
+              const updatedProfile = { ...snap.data(), isAdmin: isAdminUser } as UserProfile;
+              setProfile(updatedProfile);
+              localStorage.setItem('t2s_profile_cache_' + firebaseUser.uid, JSON.stringify(updatedProfile));
             }
-          }, (error) => handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}/snapshot`));
+          }, (error) => {
+            if (!isOfflineError(error)) {
+              handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}/snapshot`);
+            } else {
+              console.warn("Snapshot listener is currently waiting for internet connection...");
+            }
+          });
 
         } catch (error) {
           console.error("Profile Sync Error:", error);
@@ -762,7 +799,13 @@ export default function App() {
 
     const unsubPosts = onSnapshot(query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(50)), (snap) => {
       setPosts(snap.docs.map(d => ({ id: d.id, ...d.data() } as CommunityPost)));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'posts'));
+    }, (error) => {
+      if (!isOfflineError(error)) {
+        handleFirestoreError(error, OperationType.LIST, 'posts');
+      } else {
+        console.warn("Waiting for internet connection to sync community posts...");
+      }
+    });
 
     const unsubJourney = onSnapshot(query(collection(db, 'journey'), orderBy('day', 'asc')), (snap) => {
       const dbModules = snap.docs.map(d => ({ id: d.id, ...d.data() } as JourneyModule));
@@ -779,15 +822,33 @@ export default function App() {
         } as JourneyModule;
       });
       setJourneyModules(merged);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'journey'));
+    }, (error) => {
+      if (!isOfflineError(error)) {
+        handleFirestoreError(error, OperationType.LIST, 'journey');
+      } else {
+        console.warn("Waiting for internet connection to sync journey data...");
+      }
+    });
 
     const unsubArchives = onSnapshot(query(collection(db, 'archives'), orderBy('createdAt', 'desc')), (snap) => {
       setArchives(snap.docs.map(d => ({ id: d.id, ...d.data() } as VideoArchive)));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'archives'));
+    }, (error) => {
+      if (!isOfflineError(error)) {
+        handleFirestoreError(error, OperationType.LIST, 'archives');
+      } else {
+        console.warn("Waiting for internet connection to sync video archives...");
+      }
+    });
 
     const unsubLibrary = onSnapshot(query(collection(db, 'library'), orderBy('title', 'asc')), (snap) => {
       setLibrary(snap.docs.map(d => ({ id: d.id, ...d.data() } as LibraryBook)));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'library'));
+    }, (error) => {
+      if (!isOfflineError(error)) {
+        handleFirestoreError(error, OperationType.LIST, 'library');
+      } else {
+        console.warn("Waiting for internet connection to sync library books...");
+      }
+    });
 
     return () => {
       unsubPosts();
@@ -1122,17 +1183,17 @@ export default function App() {
         </div>
 
         <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto scrollbar-hide">
-          <NavItem icon={<Shield className="w-5 h-5 text-amber-500 animate-pulse" />} label="Intel Briefing" secondaryLabel="गोपनीय जानकारी" active={false} onClick={() => setShowGateway(true)} collapsed={!isSidebarOpen} />
-          <NavItem icon={<ShoppingCart className="w-5 h-5" />} label="Strategic Shop" secondaryLabel="रणनीतिक दुकान" active={activeTab === 'shop'} onClick={() => setActiveTab('shop')} collapsed={!isSidebarOpen} />
-          <NavItem icon={<Flame className="w-5 h-5" />} label="100-Day Journey" secondaryLabel="१०० दिन का सफर" active={activeTab === 'journey'} onClick={() => setActiveTab('journey')} collapsed={!isSidebarOpen} />
-          <NavItem icon={<PlayCircle className="w-5 h-5" />} label="Video Archives" secondaryLabel="वीडियो लाइब्रेरी" active={activeTab === 'archives'} onClick={() => setActiveTab('archives')} collapsed={!isSidebarOpen} />
-          <NavItem icon={<BookOpen className="w-5 h-5" />} label="The Great Library" secondaryLabel="महान पुस्तकालय" active={activeTab === 'library'} onClick={() => setActiveTab('library')} collapsed={!isSidebarOpen} />
-          <NavItem icon={<Users className="w-5 h-5" />} label="Community" secondaryLabel="समुदाय" active={activeTab === 'community'} onClick={() => setActiveTab('community')} collapsed={!isSidebarOpen} />
-          <NavItem icon={<Trophy className="w-5 h-5" />} label="Leaderboard" secondaryLabel="लीडरबोर्ड" active={activeTab === 'leaderboard'} onClick={() => setActiveTab('leaderboard')} collapsed={!isSidebarOpen} />
-          <NavItem icon={<User className="w-5 h-5" />} label="Profile Hub" secondaryLabel="प्रोफ़ाइल हब" active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} collapsed={!isSidebarOpen} />
+          <NavItem icon={<Shield className="w-5 h-5 text-amber-500 animate-pulse" />} label="Intel Briefing" secondaryLabel="गोपनीय जानकारी" active={false} onClick={() => { setShowGateway(true); setSidebarOpen(false); }} collapsed={!isSidebarOpen} />
+          <NavItem icon={<ShoppingCart className="w-5 h-5" />} label="Strategic Shop" secondaryLabel="रणनीतिक दुकान" active={activeTab === 'shop'} onClick={() => { setActiveTab('shop'); setSidebarOpen(false); }} collapsed={!isSidebarOpen} />
+          <NavItem icon={<Flame className="w-5 h-5" />} label="100-Day Journey" secondaryLabel="१०० दिन का सफर" active={activeTab === 'journey'} onClick={() => { setActiveTab('journey'); setSidebarOpen(false); }} collapsed={!isSidebarOpen} />
+          <NavItem icon={<PlayCircle className="w-5 h-5" />} label="Video Archives" secondaryLabel="वीडियो लाइब्रेरी" active={activeTab === 'archives'} onClick={() => { setActiveTab('archives'); setSidebarOpen(false); }} collapsed={!isSidebarOpen} />
+          <NavItem icon={<BookOpen className="w-5 h-5" />} label="The Great Library" secondaryLabel="महान पुस्तकालय" active={activeTab === 'library'} onClick={() => { setActiveTab('library'); setSidebarOpen(false); }} collapsed={!isSidebarOpen} />
+          <NavItem icon={<Users className="w-5 h-5" />} label="Community" secondaryLabel="समुदाय" active={activeTab === 'community'} onClick={() => { setActiveTab('community'); setSidebarOpen(false); }} collapsed={!isSidebarOpen} />
+          <NavItem icon={<Trophy className="w-5 h-5" />} label="Leaderboard" secondaryLabel="लीडरबोर्ड" active={activeTab === 'leaderboard'} onClick={() => { setActiveTab('leaderboard'); setSidebarOpen(false); }} collapsed={!isSidebarOpen} />
+          <NavItem icon={<User className="w-5 h-5" />} label="Profile Hub" secondaryLabel="प्रोफ़ाइल हब" active={activeTab === 'profile'} onClick={() => { setActiveTab('profile'); setSidebarOpen(false); }} collapsed={!isSidebarOpen} />
           
           {profile?.isAdmin && (
-            <NavItem icon={<Settings className="w-5 h-5" />} label="Admin Panel" secondaryLabel="एडमिन कंट्रोल" active={activeTab === 'admin'} onClick={() => setActiveTab('admin')} collapsed={!isSidebarOpen} />
+            <NavItem icon={<Settings className="w-5 h-5" />} label="Admin Panel" secondaryLabel="एडमिन कंट्रोल" active={activeTab === 'admin'} onClick={() => { setActiveTab('admin'); setSidebarOpen(false); }} collapsed={!isSidebarOpen} />
           )}
         </nav>
 
@@ -1180,18 +1241,18 @@ export default function App() {
       </aside>
 
       <main className="flex-1 flex flex-col h-full min-h-0 min-w-0 overflow-hidden relative z-10">
-        <header className="h-20 md:h-24 border-b border-white/5 bg-[#050505]/80 backdrop-blur-md flex items-center justify-between px-6 md:px-10 sticky top-0 z-30 shrink-0">
-          <div className="flex items-center gap-2 md:gap-4">
+        <header className="h-20 md:h-24 border-b border-white/5 bg-[#050505]/80 backdrop-blur-md flex items-center justify-between px-4 md:px-10 sticky top-0 z-30 shrink-0">
+          <div className="flex items-center gap-1.5 md:gap-4">
             <button onClick={() => setSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-white/5 rounded-lg transition-colors">
               {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
             <h2 className="text-[10px] md:text-xs uppercase tracking-wider font-semibold text-gray-400 whitespace-nowrap">
-              Menu / <span className="text-white">{activeTab.replace('-', ' ')}</span>
+              <span className="hidden sm:inline">Menu / </span><span className="text-white">{activeTab.replace('-', ' ')}</span>
             </h2>
           </div>
-          <div className="flex items-center gap-3 md:gap-6">
+          <div className="flex items-center gap-2 md:gap-6">
             {profile && (profile.isStrategist || profile.isAdmin) ? (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg text-[9px] font-black uppercase tracking-wider">
+              <div className="flex items-center gap-1.5 px-2 py-1.5 md:px-3 bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg text-[9px] font-black uppercase tracking-wider">
                 <Zap className="w-3 h-3 text-green-400 fill-green-400 animate-pulse" />
                 <span className="hidden sm:inline">Premium / संप्रभु</span>
                 <span className="sm:hidden">Premium</span>
@@ -1199,24 +1260,24 @@ export default function App() {
             ) : (
               <button
                 onClick={() => setIsAscensionOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:scale-[1.03] text-black rounded-lg text-[9px] font-black uppercase tracking-wider shadow-[0_0_15px_rgba(245,158,11,0.2)] transition-all cursor-pointer shrink-0"
+                className="flex items-center gap-1 px-2.5 py-1.5 md:px-3 bg-gradient-to-r from-amber-500 to-yellow-500 hover:scale-[1.03] text-black rounded-lg text-[9px] font-black uppercase tracking-wider shadow-[0_0_15px_rgba(245,158,11,0.2)] transition-all cursor-pointer shrink-0"
               >
                 <Zap className="w-3 h-3 fill-black text-black shrink-0" />
-                <span className="hidden md:inline">Request Premium / प्रीमियम अनलॉक</span>
-                <span className="inline md:hidden">Unlock Premium</span>
+                <span className="hidden sm:inline">Unlock Premium</span>
+                <span className="inline sm:hidden">Unlock</span>
               </button>
             )}
             <div className="hidden sm:flex flex-col items-end">
               <span className="text-[10px] uppercase tracking-wider text-white/40 font-bold">Total Points</span>
               <span className="text-lg md:text-xl font-bold font-mono text-white leading-none">{(profile?.xp || 0).toLocaleString()}</span>
             </div>
-            <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl border border-white/10 bg-white/5 flex items-center justify-center p-0.5 overflow-hidden ring-1 ring-white/5 ring-offset-2 ring-offset-black cursor-pointer hover:scale-105 transition-transform" onClick={() => setActiveTab('profile')}>
+            <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl border border-white/10 bg-white/5 flex items-center justify-center p-0.5 overflow-hidden ring-1 ring-white/5 ring-offset-2 ring-offset-black cursor-pointer hover:scale-105 transition-transform" onClick={() => setActiveTab('profile')}>
               <img src={profile?.photoURL || user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`} alt="avatar" className="w-full h-full object-cover" />
             </div>
           </div>
         </header>
 
-        <section className="flex-1 overflow-y-auto min-h-0 p-6 md:p-12 lg:p-16 max-w-7xl w-full mx-auto">
+        <section className="flex-1 overflow-y-auto min-h-0 p-4 sm:p-6 md:p-12 lg:p-16 max-w-7xl w-full mx-auto">
           {quotaError && (
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }} 
@@ -1746,13 +1807,13 @@ function StrikeResetModal({ onClose }: { onClose: () => void }) {
       initial={{ opacity: 0 }} 
       animate={{ opacity: 1 }} 
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95 backdrop-blur-md"
+      className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/95 backdrop-blur-md overflow-y-auto"
     >
       <motion.div 
         initial={{ scale: 0.9, y: 30 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.9, y: 30 }}
-        className="bg-zinc-950 border-2 border-red-500/30 rounded-[32px] md:rounded-[40px] p-8 md:p-12 max-w-xl w-full text-center space-y-8 shadow-[0_0_50px_rgba(239,68,68,0.25)] relative overflow-hidden"
+        className="bg-zinc-950 border-2 border-red-500/30 rounded-[32px] md:rounded-[40px] p-6 md:p-12 max-w-xl w-full text-center space-y-8 shadow-[0_0_50px_rgba(239,68,68,0.25)] relative overflow-hidden my-auto"
       >
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-red-600 via-orange-500 to-red-600" />
         
@@ -1913,494 +1974,112 @@ function SearchModal({ onClose, journey, archives, library, onSelect, profile }:
 }
 
 function AscensionModal({ onClose, profile }: { onClose: () => void, profile: UserProfile }) {
-  const [step, setStep] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<'sovereign' | 'elite'>('sovereign');
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'upi'>('card');
-  
-  // Payment card inputs
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvv, setCardCvv] = useState('');
-  const [cardName, setCardName] = useState('');
-  const [upiAddress, setUpiAddress] = useState('');
-  const [transactionId, setTransactionId] = useState('');
-  
-  // Legal/Intel-Handshake Declarations & Consents
-  const [consentOne, setConsentOne] = useState(false);
-  const [consentTwo, setConsentTwo] = useState(false);
-
-  // Security Verification Logs
-  const [logIndex, setLogIndex] = useState(0);
-  const [paymentLogs, setPaymentLogs] = useState<string[]>([]);
-
-  useEffect(() => {
-    if (step === 3) {
-      setLogIndex(0);
-      setPaymentLogs([]);
-      const logs = [
-        "Initiating sovereign secure handshake...",
-        "Validating account credentials code...",
-        "Resolving server-side strategic keys...",
-        "Synchronizing strategic ledger index docs...",
-        "Authorizing complete sovereign access roles...",
-        "Upgrading global user privilege to Strategist..."
-      ];
-      
-      const interval = setInterval(() => {
-        setLogIndex(prev => {
-          if (prev < logs.length) {
-            setPaymentLogs(p => [...p, logs[prev]]);
-            if (prev === logs.length - 1) {
-              handleAscension();
-            }
-            return prev + 1;
-          } else {
-            clearInterval(interval);
-            return prev;
-          }
-        });
-      }, 700);
-      
-      return () => clearInterval(interval);
-    }
-  }, [step]);
-
-  const handleAscension = async () => {
-    try {
-      await updateDoc(doc(db, 'users', profile.uid), { 
-        premiumRequestStatus: 'pending',
-        premiumRequestPlan: selectedPlan,
-        premiumRequestPlanName: selectedPlan === 'sovereign' ? 'Sovereign Pass' : 'Elite Consult',
-        premiumRequestPaymentMethod: paymentMethod,
-        premiumRequestDetails: paymentMethod === 'card' 
-          ? `Card ending in ${cardNumber.trim().slice(-4)}`
-          : `UPI ID: ${upiAddress}`,
-        premiumRequestTransactionId: transactionId.trim(),
-        premiumRequestDate: serverTimestamp()
-      });
-      setStep(4);
-    } catch (e) {
-      handleFirestoreError(e, OperationType.UPDATE, `users/${profile.uid}`);
-      setStep(2); // return to payment on error
-    }
-  };
-
-  const getPlanPrice = () => {
-    return selectedPlan === 'sovereign' ? { usd: '$99', inr: '7,999' } : { usd: '$249', inr: '19,999' };
-  };
-
-  const isFormValid = () => {
-    if (!consentOne || !consentTwo) return false;
-    if (transactionId.trim().length < 4) return false;
-    if (paymentMethod === 'card') {
-      return cardNumber.trim().length >= 12 && cardExpiry.trim().length >= 4 && cardCvv.trim().length >= 3 && cardName.trim().length > 3;
-    } else {
-      return upiAddress.includes('@') && upiAddress.length > 5;
-    }
-  };
-
-  const formatCardNumber = (value: string) => {
-    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-    const matches = v.match(/\d{4,16}/g);
-    const match = (matches && matches[0]) || '';
-    const parts = [];
-
-    for (let i = 0, len = match.length; i < len; i += 4) {
-      parts.push(match.substring(i, i + 4));
-    }
-
-    if (parts.length > 0) {
-      return parts.join(' ');
-    } else {
-      return v;
-    }
-  };
-
-  const formatExpiry = (value: string) => {
-    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-    if (v.length >= 2) {
-      return `${v.slice(0, 2)}/${v.slice(2, 4)}`;
-    }
-    return v;
-  };
-
   return (
-    <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[100] flex items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[100] flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
       <motion.div 
         initial={{ scale: 0.95, opacity: 0 }} 
         animate={{ scale: 1, opacity: 1 }} 
-        className="w-full max-w-xl bg-zinc-950 border border-zinc-800 rounded-[32px] overflow-hidden shadow-[0_0_100px_rgba(245,158,11,0.1)] my-8"
+        className="w-full max-w-xl bg-zinc-950 border border-zinc-900 rounded-[32px] overflow-hidden shadow-[0_0_100px_rgba(245,158,11,0.1)] relative p-6 md:p-10 text-center space-y-8 my-auto"
         onClick={e => e.stopPropagation()}
       >
-        {/* Progress Timeline Header */}
-        <div className="grid grid-cols-4 h-1.5 bg-zinc-900 overflow-hidden">
-          <div className={`h-full transition-all duration-300 ${step >= 1 ? 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]' : 'bg-transparent'}`} />
-          <div className={`h-full transition-all duration-300 ${step >= 2 ? 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]' : 'bg-transparent'}`} />
-          <div className={`h-full transition-all duration-300 ${step >= 3 ? 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]' : 'bg-transparent'}`} />
-          <div className={`h-full transition-all duration-300 ${step >= 4 ? 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]' : 'bg-transparent'}`} />
+        {/* Close button on Top Right */}
+        <button 
+          onClick={onClose}
+          className="absolute top-6 right-6 p-2 rounded-xl bg-zinc-900 w-10 h-10 flex items-center justify-center hover:bg-white/5 text-zinc-500 hover:text-white transition-colors cursor-pointer"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        {/* Premium Badge Icon */}
+        <div className="w-16 h-16 bg-gradient-to-tr from-amber-500/10 to-yellow-500/10 border border-amber-500/20 rounded-3xl mx-auto flex items-center justify-center shadow-[0_0_40px_rgba(245,158,11,0.15)] animate-pulse">
+          <Zap className="w-8 h-8 text-amber-500 fill-amber-500/20" />
         </div>
 
-        {/* Header Title Desk */}
-        <div className="px-6 pt-6 flex items-center justify-between border-b border-zinc-900 pb-4">
-          <div className="flex items-center gap-2">
-            <Zap className="w-5 h-5 text-amber-500 fill-amber-500" />
-            <h1 className="text-xs font-mono font-black text-white tracking-widest uppercase">
-              {step === 1 && "Plan Setup Desk"}
-              {step === 2 && "Secure Payment Gateway"}
-              {step === 3 && "Authority Handshake"}
-              {step === 4 && "Access Verification Verified"}
-            </h1>
+        {/* Headings */}
+        <div className="space-y-3">
+          <h2 className="text-3xl font-display font-black text-white italic tracking-tighter uppercase leading-none select-none">
+            Sovereign Ascension / संप्रभु प्रवेश
+          </h2>
+          <p className="text-zinc-500 font-mono text-[10px] font-black tracking-widest uppercase select-none">
+            The Elite Strategists Handshake
+          </p>
+        </div>
+
+        {/* Price Card */}
+        <div className="p-4 bg-zinc-900 border border-zinc-900 rounded-2xl flex justify-between items-center text-left">
+          <div>
+            <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest font-bold">Lifetime Membership / आजीवन सदस्यता</div>
+            <div className="text-white font-black text-sm uppercase">Sovereign Pass / संप्रभु पास</div>
+            <div className="text-[9px] text-amber-500 font-mono mt-0.5 uppercase tracking-wider font-extrabold flex items-center gap-1">
+              <span className="w-1 h-1 bg-amber-500 rounded-full animate-ping" /> First 100 Users Special Offer
+            </div>
           </div>
-          {step > 1 && step < 3 && (
-            <button 
-              onClick={() => setStep(prev => prev - 1)} 
-              className="px-3 py-1 bg-zinc-900 hover:bg-zinc-800 text-[10px] font-mono font-bold uppercase text-zinc-400 hover:text-white rounded-lg border border-zinc-800 transition-colors flex items-center gap-1 cursor-pointer"
-            >
-              <ArrowLeft size={12} /> Back
-            </button>
-          )}
+          <div className="text-right">
+            <div className="flex items-baseline justify-end gap-1.5">
+              <span className="line-through text-zinc-600 text-xs font-bold">Rs. 2,999</span>
+              <span className="text-2xl font-display font-black text-amber-500">Rs. 299</span>
+            </div>
+            <div className="text-[9px] font-mono text-zinc-500 font-black uppercase">One-Time / सदा के लिए</div>
+          </div>
         </div>
-        
-        <div className="p-8 space-y-6">
-          
-          {/* STEP 1: Plan Tier Selector & Benefits Overview */}
-          {step === 1 && (
-            <div className="space-y-6">
-              <div className="text-center space-y-2">
-                <h2 className="text-3xl font-display font-black text-white italic tracking-tight uppercase">Elevate Status / सदस्यता स्तर चुनें</h2>
-                <p className="text-zinc-400 text-xs max-w-md mx-auto">
-                  Acquire complete sovereign analytical packages, lifetime audio/files, and direct modules. Choose your gateway configuration.
-                </p>
-              </div>
 
-              {/* Dynamic Option Panels */}
-              <div className="space-y-3">
-                <div 
-                  onClick={() => setSelectedPlan('sovereign')}
-                  className={`p-5 rounded-2xl border transition-all cursor-pointer text-left relative flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${selectedPlan === 'sovereign' ? 'border-amber-500/80 bg-amber-500/[0.02] shadow-[0_0_20px_rgba(245,158,11,0.05)]' : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/40'}`}
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono font-black text-white bg-zinc-800 border border-zinc-700 px-2 py-0.5 rounded tracking-wide uppercase">Tier Alpha</span>
-                      <h3 className="text-lg font-black text-white uppercase tracking-tight">Sovereign Pass / संप्रभु पास</h3>
-                    </div>
-                    <p className="text-xs text-zinc-400 font-medium">100-Day complete archives, PDF Manuscripts, and video blueprints forever.</p>
-                  </div>
-                  <div className="shrink-0 text-right md:text-right border-t md:border-t-0 pt-3 md:pt-0 border-zinc-800 w-full md:w-auto">
-                    <div className="text-2xl font-display font-black text-amber-500">₹7,999 <span className="text-xs tracking-normal font-sans font-semibold text-zinc-500">($99)</span></div>
-                    <div className="text-[9px] font-mono text-zinc-500 font-black uppercase">Lifetime Package</div>
-                  </div>
-                  {selectedPlan === 'sovereign' && (
-                    <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center">
-                      <Check className="w-3 h-3 text-black stroke-[3px]" />
-                    </div>
-                  )}
-                </div>
-
-                <div 
-                  onClick={() => setSelectedPlan('elite')}
-                  className={`p-5 rounded-2xl border transition-all cursor-pointer text-left relative flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${selectedPlan === 'elite' ? 'border-amber-500/80 bg-amber-500/[0.02] shadow-[0_0_20px_rgba(245,158,11,0.05)]' : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/40'}`}
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono font-black text-purple-400 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded tracking-wide uppercase">Tier Premium</span>
-                      <h3 className="text-lg font-black text-white uppercase tracking-tight">Elite Consult / रणनीतिकार</h3>
-                    </div>
-                    <p className="text-xs text-zinc-400 font-medium">Includes Sovereign lifetime pass plus direct 1-on-1 strategy audit lesson.</p>
-                  </div>
-                  <div className="shrink-0 text-right md:text-right border-t md:border-t-0 pt-3 md:pt-0 border-zinc-800 w-full md:w-auto">
-                    <div className="text-2xl font-display font-black text-purple-400">₹19,999 <span className="text-xs tracking-normal font-sans font-semibold text-zinc-500">($249)</span></div>
-                    <div className="text-[9px] font-mono text-zinc-500 font-black uppercase">Priority Session</div>
-                  </div>
-                  {selectedPlan === 'elite' && (
-                    <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center">
-                      <Check className="w-3 h-3 text-black stroke-[3px]" />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Visual Benefits Matrix */}
-              <div className="p-4 bg-zinc-900/40 border border-zinc-900 rounded-2xl space-y-3">
-                <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest font-black">Authorized Cognitive Deliverables:</div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-zinc-300">
-                  <div className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Unlock Day 01-100 Strategums
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Watch Premium Archives lessons
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Download exclusive pdf library
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Special Strategist status emblem
-                  </div>
-                </div>
-              </div>
-
-              <button 
-                onClick={() => setStep(2)}
-                className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-black font-mono font-black uppercase tracking-widest text-xs rounded-2xl shadow-[0_4px_20px_rgba(245,158,11,0.25)] hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
-              >
-                Proceed to Checkout Details <ChevronRight size={14} />
-              </button>
-            </div>
-          )}
-
-          {/* STEP 2: Checkout Form & Interactive Payment Fields + Declarations */}
-          {step === 2 && (
-            <div className="space-y-6">
-              {/* Order pricing breakdown summary */}
-              <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl flex justify-between items-center">
-                <div>
-                  <div className="text-xs font-mono text-zinc-500 uppercase font-black tracking-widest">Order Summary</div>
-                  <div className="text-white font-black text-sm uppercase">
-                    {selectedPlan === 'sovereign' ? 'Sovereign Pass / संप्रभु पास' : 'Elite Consult (Mentorship)'}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-xl font-display font-black text-amber-500">
-                    ₹{getPlanPrice().inr} <span className="text-xs text-zinc-500 font-sans font-medium">({getPlanPrice().usd})</span>
-                  </div>
-                  <div className="text-[9px] font-mono text-zinc-500 font-bold uppercase">100% Secure Checkout Desk (GST Inc)</div>
-                </div>
-              </div>
-
-              {/* Payment Methods tabs selection */}
-              <div className="space-y-4 text-left">
-                <label className="text-[10px] font-mono text-zinc-500 uppercase font-black tracking-widest block">Choose Payment Gateway:</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => setPaymentMethod('card')}
-                    className={`py-3.5 px-4 rounded-xl font-mono text-xs font-black uppercase tracking-wider border transition-all flex items-center justify-center gap-2 cursor-pointer ${paymentMethod === 'card' ? 'bg-white text-black border-white' : 'bg-transparent text-zinc-400 border-zinc-800 hover:border-zinc-700 hover:text-white'}`}
-                  >
-                    <CreditCard size={14} /> Credit / Debit Card & UPI
-                  </button>
-                  <button
-                    onClick={() => setPaymentMethod('upi')}
-                    className={`py-3.5 px-4 rounded-xl font-mono text-xs font-black uppercase tracking-wider border transition-all flex items-center justify-center gap-2 cursor-pointer ${paymentMethod === 'upi' ? 'bg-white text-black border-white' : 'bg-transparent text-zinc-400 border-zinc-800 hover:border-zinc-700 hover:text-white'}`}
-                  >
-                    🔑 Direct UPI Web-App / QR
-                  </button>
-                </div>
-              </div>
-
-              {/* Payment details block depending on method */}
-              <div className="space-y-4 text-left">
-                {paymentMethod === 'card' ? (
-                  <div className="space-y-3.5">
-                    <div>
-                      <label className="text-[9px] font-mono text-zinc-400 uppercase font-black tracking-wide block mb-1">Card Number (लॉगिन क्रेडिट कार्ड)</label>
-                      <input 
-                        type="text" 
-                        maxLength={19}
-                        placeholder="4111 2222 3333 4444"
-                        value={cardNumber}
-                        onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
-                        className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-white font-mono text-sm placeholder-zinc-600 focus:border-amber-500 outline-none transition-colors"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[9px] font-mono text-zinc-400 uppercase font-black tracking-wide block mb-1">Expiry Date</label>
-                        <input 
-                          type="text" 
-                          maxLength={5}
-                          placeholder="MM/YY"
-                          value={cardExpiry}
-                          onChange={(e) => setCardExpiry(formatExpiry(e.target.value))}
-                          className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-white font-mono text-sm placeholder-zinc-600 focus:border-amber-500 outline-none transition-colors"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[9px] font-mono text-zinc-400 uppercase font-black tracking-wide block mb-1">CVV / Security Code</label>
-                        <input 
-                          type="password" 
-                          maxLength={4}
-                          placeholder="•••"
-                          value={cardCvv}
-                          onChange={(e) => setCardCvv(e.target.value.replace(/[^0-9]/g, ''))}
-                          className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-white font-mono text-sm placeholder-zinc-600 focus:border-amber-500 outline-none transition-colors"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-[9px] font-mono text-zinc-400 uppercase font-black tracking-wide block mb-1">Primary Holder Name</label>
-                      <input 
-                        type="text" 
-                        placeholder="COGNITIVE HUNTER"
-                        value={cardName}
-                        onChange={(e) => setCardName(e.target.value)}
-                        className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-white font-mono text-sm placeholder-zinc-600 focus:border-amber-500 outline-none transition-colors"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {/* Mock QR scan component */}
-                    <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl flex flex-col md:flex-row items-center gap-4 text-center md:text-left">
-                      <div className="w-28 h-28 bg-white p-2 rounded-xl shrink-0 border border-zinc-700 shadow-lg flex flex-col justify-between items-center">
-                        <div className="grid grid-cols-4 gap-1 w-full h-full opacity-90">
-                          {Array.from({ length: 16 }).map((_, i) => (
-                            <div key={i} className={`rounded-[2px] ${i % 3 === 0 || i % 7 === 1 ? 'bg-black' : 'bg-transparent'}`} />
-                          ))}
-                        </div>
-                      </div>
-                      <div className="space-y-1.5 flex-1">
-                        <div className="text-[10px] bg-amber-500/10 border border-amber-500/30 text-amber-500 px-2.5 py-0.5 rounded-full font-mono font-black uppercase tracking-wider w-fit mx-auto md:mx-0">UPI PAY LINK PROTOCOL</div>
-                        <h4 className="text-xs font-black text-white uppercase font-mono">SCAN PROTOCOL QR TO PAY</h4>
-                        <p className="text-[10px] text-zinc-400 leading-relaxed font-semibold">
-                          Scan with BHIM, Google Pay, PhonePe, Paytm or any UPI scanner to transfer ₹{getPlanPrice().inr}. Recipient: <span className="text-amber-400 font-bold">akcandradipti@upi</span>
-                        </p>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-[9px] font-mono text-zinc-400 uppercase font-black tracking-wide block mb-1">Your Sender UPI ID (लॉगिन UPI एड्रेस)</label>
-                      <input 
-                        type="text" 
-                        placeholder="sovereign@bhim"
-                        value={upiAddress}
-                        onChange={(e) => setUpiAddress(e.target.value)}
-                        className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-white font-mono text-sm placeholder-zinc-600 focus:border-amber-500 outline-none transition-colors"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Unique Transaction ID Field */}
-              <div className="p-4 rounded-2xl bg-amber-500/[0.02] border border-amber-500/30 space-y-2 text-left">
-                <label className="text-[10px] font-mono text-amber-400 uppercase font-black tracking-widest block flex items-center gap-1.5">
-                  <span className="inline-block w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></span>
-                  Transaction Reference ID / UTR / लेनदेन आईडी (MANDATORY)
-                </label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. UPI8249618451 / UTR-95817204958"
-                  value={transactionId}
-                  onChange={(e) => setTransactionId(e.target.value)}
-                  className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 focus:border-amber-500 rounded-xl text-white font-mono text-sm placeholder-zinc-800 outline-none transition-all uppercase tracking-wider"
-                />
-                <p className="text-[9px] text-zinc-500 font-sans font-semibold leading-relaxed">
-                  भुगतान पूरा करने के बाद प्राप्त UPI संदर्भांक (12 अंकों का UTR / लेनदेन संदर्भांक) यहाँ अवश्य दर्ज करें। एडमिन इस आईडी का मिलान करके आपकी संप्रभु पहुँच स्वीकृत करेंगे।
-                </p>
-              </div>
-
-              {/* Declarations checklist (Mandatory Confirmation) */}
-              <div className="space-y-3 text-left pt-2 border-t border-zinc-900">
-                <label className="text-[10px] font-mono text-zinc-500 uppercase font-black tracking-widest block">Sovereign Declarations Confirmation:</label>
-                
-                <label className="flex items-start gap-3 cursor-pointer group">
-                  <input 
-                    type="checkbox"
-                    checked={consentOne}
-                    onChange={(e) => setConsentOne(e.target.checked)}
-                    className="mt-1 accent-amber-500 w-4 h-4 cursor-pointer"
-                  />
-                  <span className="text-xs text-zinc-400 group-hover:text-zinc-300 transition-colors font-medium leading-relaxed select-none">
-                    मैं पुष्टि करता हूँ कि मैं १०० दिन की इस हंटर-यात्रा का पूरी ईमानदारी से पालन करूँगा। / I commit to honoring the rigorous 100-Day Hunter protocols completely.
-                  </span>
-                </label>
-
-                <label className="flex items-start gap-3 cursor-pointer group">
-                  <input 
-                    type="checkbox"
-                    checked={consentTwo}
-                    onChange={(e) => setConsentTwo(e.target.checked)}
-                    className="mt-1 accent-amber-500 w-4 h-4 cursor-pointer"
-                  />
-                  <span className="text-xs text-zinc-400 group-hover:text-zinc-300 transition-colors font-medium leading-relaxed select-none">
-                    मैं समझता हूँ कि शैडो फाइल्स तथा रणनीतियां केवल मेरे संज्ञानात्मक विकास के लिए हैं। / I acknowledge that these high-tactical plans are designed exclusively for cognitive analytical development.
-                  </span>
-                </label>
-              </div>
-
-              {/* Submit Checkout Gate button */}
-              <button 
-                disabled={!isFormValid()}
-                onClick={() => setStep(3)}
-                className={`w-full py-4 rounded-2xl font-mono font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-2 cursor-pointer ${isFormValid() ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black hover:scale-[1.01] shadow-[0_4px_20px_rgba(245,158,11,0.25)]' : 'bg-zinc-900 border border-zinc-800 text-zinc-600 cursor-not-allowed'}`}
-              >
-                <Lock size={12} /> Pay & Authorize ₹{getPlanPrice().inr} ({getPlanPrice().usd})
-              </button>
-            </div>
-          )}
-
-          {/* STEP 3: High-Tech authority handshake sequence simulator loaders */}
-          {step === 3 && (
-            <div className="py-6 space-y-6 text-center">
-              <div className="relative w-20 h-20 mx-auto">
-                <div className="absolute inset-0 border-4 border-amber-500/20 rounded-full" />
-                <div className="absolute inset-0 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Zap className="w-8 h-8 text-amber-500 fill-amber-500 animate-pulse" />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <h3 className="text-2xl font-display font-black text-white italic tracking-tight uppercase">Authorizing Handshake...</h3>
-                <p className="text-zinc-500 text-[10px] font-mono tracking-widest uppercase">resolving with decentralized server ledger</p>
-              </div>
-
-              {/* Secure Log Console Terminal block */}
-              <div className="p-4 bg-black border border-zinc-900 rounded-2xl text-left font-mono text-[10px] space-y-2 min-h-[140px] max-h-[140px] overflow-y-auto scrollbar-hide select-none">
-                {paymentLogs.map((log, index) => (
-                  <div key={index} className="flex gap-2 text-zinc-400">
-                    <span className="text-amber-500">▶</span>
-                    <span>{log}</span>
-                  </div>
-                ))}
-                {logIndex < 6 && (
-                  <span className="inline-block w-2 bg-white h-3.5 animate-pulse ml-1" />
-                )}
+        {/* Deliverables Checklist / Features */}
+        <div className="p-5 bg-zinc-900/40 border border-zinc-900 rounded-2xl space-y-4 text-left">
+          <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest font-bold">Authorized Member Deliverables:</div>
+          <div className="space-y-4 text-xs text-zinc-300 font-sans">
+            <div className="flex items-start gap-3">
+              <Check className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+              <div>
+                <strong className="text-white block font-bold text-sm">100-Day Special Journey</strong>
+                <span className="text-zinc-400">Unlock Day 01-100 full strategums, pdf scripts, and shadow channels.</span>
               </div>
             </div>
-          )}
-
-          {/* STEP 4: ACCESS UNLEASHED - SUCCESS SCREEN */}
-          {step === 4 && (
-            <div className="space-y-6 text-center">
-              <div className="w-24 h-24 bg-gradient-to-tr from-amber-500/10 to-yellow-500/10 border border-amber-500/30 rounded-[32px] mx-auto flex items-center justify-center shadow-[0_0_40px_rgba(245,158,11,0.15)] animate-bounce">
-                <CheckCircle2 size={48} className="text-amber-400" />
+            <div className="flex items-start gap-3">
+              <Check className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+              <div>
+                <strong className="text-white block font-bold text-sm">Limitless Audio & Video Archives</strong>
+                <span className="text-zinc-400">Gain access to all locked video lessons and hidden audio entries.</span>
               </div>
-              
-              <div className="space-y-2">
-                <h2 className="text-3xl font-display font-black text-white italic tracking-tighter uppercase leading-none">Verification Pending / सत्यापन लंबित है</h2>
-                <p className="text-zinc-400 text-xs font-semibold leading-relaxed">
-                  Your payment authorization request has been successfully queued for processing.
-                </p>
-              </div>
-
-              <div className="p-5 bg-zinc-900/60 border border-zinc-900 rounded-2xl text-left space-y-3 font-medium text-xs text-zinc-300">
-                <p>
-                  यह Talk2Society के मुख्य पटल पर व्यवस्थापक (<strong className="text-amber-400">A. K. Chandradipti</strong>) के पास सत्यापन के लिए भेजा गया है।
-                </p>
-                <p>
-                  Once the transaction confirmation is matched against our secure manual ledger, your status will instantly elevate to <strong className="text-white">Special Strategist (संप्रभु रणनीतिकार)</strong>. This process typically takes up to 1-2 hours.
-                </p>
-              </div>
-
-              <div className="p-4 bg-zinc-900/60 border border-zinc-800 rounded-2xl flex justify-between items-center text-left">
-                <div>
-                  <div className="text-[10px] font-mono text-zinc-500 uppercase font-black">Registered Account</div>
-                  <div className="text-white font-bold text-xs font-mono">{profile?.email || 'sovereign_strategist'}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[10px] font-mono text-zinc-500 uppercase font-black">Ledger Status</div>
-                  <div className="text-xs text-amber-500 font-mono font-black uppercase animate-pulse">⏱️ Pending Confirmation</div>
-                </div>
-              </div>
-
-              <button 
-                onClick={onClose}
-                className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-black rounded-2xl font-mono font-black uppercase tracking-widest text-xs transition-colors cursor-pointer font-bold"
-              >
-                Close Gateway / प्रवेश द्वार बंद करें
-              </button>
             </div>
-          )}
+            <div className="flex items-start gap-3">
+              <Check className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+              <div>
+                <strong className="text-white block font-bold text-sm">One-on-One Interaction Option</strong>
+                <span className="text-zinc-400">Priority strategic mentor audit lesson with A. K. Chandradipti.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Instruction Message */}
+        <div className="p-6 bg-amber-500/[0.02] border border-amber-500/20 rounded-2xl space-y-3 text-center">
+          <div className="text-amber-400 font-mono text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2">
+            <Send className="w-3.5 h-3.5 fill-amber-500/10" /> Telegram DM Request
+          </div>
+          <p className="text-zinc-200 text-xs font-medium leading-relaxed max-w-sm mx-auto">
+            To unlock Premium access for only <strong className="text-amber-400 font-bold">Rs. 299</strong> instead of the standard <span className="line-through text-zinc-500 font-bold">Rs. 2,999</span> (special slot for first 100 users), <strong className="text-amber-400 font-bold">DM us directly on Telegram</strong>. We will guide you to elevate your account manually.
+          </p>
+          <p className="text-zinc-400 text-[10px] font-semibold leading-relaxed max-w-sm mx-auto uppercase tracking-wide font-mono">
+            पहले 100 उपयोगकर्ताओं के लिए विशेष छूट: असली कीमत Rs. 2,999 के बजाय केवल Rs. 299 में प्रीमियम एक्सेस और भुगतान विवरण प्राप्त करने के लिए कृपया टेलीग्राम पर हमें सीधे संदेश (DM) भेजें।
+          </p>
+        </div>
+
+        {/* Primary CTA Buttons */}
+        <div className="flex flex-col sm:flex-row gap-3 w-full">
+          <a 
+            href="https://t.me/A_K_Chandradipti" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex-1 py-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black font-mono font-black uppercase tracking-widest text-[10px] md:text-xs rounded-xl shadow-[0_0_25px_rgba(245,158,11,0.2)] hover:scale-[1.01] transition-all flex items-center justify-center gap-2 font-bold cursor-pointer font-sans"
+          >
+            <Send className="w-4 h-4 fill-black" /> DM on Telegram / टेलीग्राम पर संदेश भेजें
+          </a>
+          <button 
+            onClick={onClose}
+            className="px-6 py-4 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 rounded-xl font-mono font-black uppercase tracking-widest text-[10px] md:text-xs transition-all cursor-pointer"
+          >
+            Close / बंद करें
+          </button>
         </div>
       </motion.div>
     </div>
@@ -2467,13 +2146,13 @@ function ProfileView({ profile, rank, onOpenAscension }: { profile: UserProfile,
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-16">
-      <div className="flex flex-col md:flex-row gap-12 items-start md:items-center">
-        <div className="w-40 h-40 rounded-[40px] overflow-hidden ring-4 ring-white/5 ring-offset-8 ring-offset-black shrink-0 shadow-2xl relative group">
+      <div className="flex flex-col md:flex-row gap-6 md:gap-12 items-center md:items-start text-center md:text-left">
+        <div className="w-32 h-32 md:w-40 md:h-40 rounded-[32px] md:rounded-[40px] overflow-hidden ring-4 ring-white/5 ring-offset-4 md:ring-offset-8 ring-offset-black shrink-0 shadow-2xl relative group">
           <img src={newPhotoURL || profile.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.uid}`} alt="avatar" className="w-full h-full object-cover" />
           {isEditing && (
             <label className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-              <Upload className="w-8 h-8 text-white mb-2" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-white">Upload New</span>
+              <Upload className="w-6 h-6 text-white mb-2" />
+              <span className="text-[9px] font-black uppercase tracking-widest text-white">Upload New</span>
               <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
             </label>
           )}
@@ -2483,26 +2162,26 @@ function ProfileView({ profile, rank, onOpenAscension }: { profile: UserProfile,
             </div>
           )}
         </div>
-        <div className="flex-1 space-y-6">
-          <div className="text-white/40 text-xs font-bold uppercase tracking-wider">Level {profile.level} / चरण {profile.level}</div>
+        <div className="flex-1 space-y-6 w-full">
+          <div className="text-white/40 text-[10px] sm:text-xs font-bold uppercase tracking-wider">Level {profile.level} / चरण {profile.level}</div>
           
           {isEditing ? (
-            <div className="space-y-6">
+            <div className="space-y-6 text-left">
               <div className="flex flex-col gap-2">
                 <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Identity Display (नाम)</label>
                 <input 
                   value={newName} 
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder="Your Name (आपका नाम)"
-                  className="bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-3xl font-display font-black text-white w-full max-w-sm"
+                  className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 sm:px-6 sm:py-4 text-xl sm:text-3xl font-display font-black text-white w-full max-w-sm"
                 />
               </div>
               <div className="flex flex-col gap-2">
                 <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Profile Visual (प्रोफ़ाइल चित्र)</label>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 flex-wrap">
                   <button 
                     onClick={() => document.getElementById('avatar-upload')?.click()}
-                    className="flex items-center gap-3 px-6 py-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-amber-500 text-xs font-bold uppercase tracking-wider hover:bg-amber-500/20 transition-all"
+                    className="flex items-center gap-3 px-5 py-3 sm:px-6 sm:py-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-amber-500 text-xs font-bold uppercase tracking-wider hover:bg-amber-500/20 transition-all text-left"
                   >
                     <ImageIcon size={16} />
                     Change Photo / फोटो बदलें
@@ -2519,8 +2198,8 @@ function ProfileView({ profile, rank, onOpenAscension }: { profile: UserProfile,
                 placeholder="Talk about yourself... (अपने बारे में कुछ लिखें...)"
                 className="bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm text-gray-400 w-full max-w-md h-32 resize-none font-medium"
               />
-              <div className="flex gap-4">
-                <button onClick={updateProfile} className="px-8 py-3 bg-white text-black rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-3 shadow-xl">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 max-w-md">
+                <button onClick={updateProfile} className="px-8 py-3 bg-white text-black rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-3 shadow-xl">
                   <Save size={16}/> Save Profile / सुरक्षित करें
                 </button>
                 <button onClick={() => {
@@ -2528,21 +2207,21 @@ function ProfileView({ profile, rank, onOpenAscension }: { profile: UserProfile,
                   setNewName(profile.displayName);
                   setNewBio(profile.bio || "");
                   setNewPhotoURL(profile.photoURL || "");
-                }} className="px-8 py-3 bg-white/5 text-white rounded-xl text-xs font-bold uppercase tracking-wider">
+                }} className="px-8 py-3 bg-white/5 text-white rounded-xl text-xs font-bold uppercase tracking-wider justify-center">
                   Cancel / रद्द करें
                 </button>
               </div>
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="flex items-center gap-6">
-                <h1 className="text-4xl md:text-6xl font-display font-black text-white tracking-tight uppercase leading-none">{profile.displayName}</h1>
-                <button onClick={() => setIsEditing(true)} className="p-2 md:p-3 bg-white/5 rounded-xl text-gray-400 hover:text-white transition-colors border border-white/5"><Edit2 size={18}/></button>
+              <div className="flex items-center justify-center md:justify-start gap-4 sm:gap-6">
+                <h1 className="text-3xl sm:text-4xl md:text-6xl font-display font-black text-white tracking-tight uppercase leading-none">{profile.displayName}</h1>
+                <button onClick={() => setIsEditing(true)} className="p-2 md:p-3 bg-white/5 rounded-xl text-gray-400 hover:text-white transition-colors border border-white/5 shrink-0"><Edit2 size={18}/></button>
               </div>
-              <p className="text-gray-400 text-base md:text-lg max-w-xl font-medium italic leading-relaxed">
+              <p className="text-gray-400 text-sm sm:text-base md:text-lg max-w-xl font-medium italic leading-relaxed mx-auto md:mx-0">
                 {profile.bio || "No summary provided. Edit your profile to share your journey. (कोई जानकारी उपलब्ध नहीं है।)"}
               </p>
-              <div className="flex items-center gap-3 text-gray-600 text-[10px] font-bold uppercase tracking-widest">
+              <div className="flex items-center justify-center md:justify-start gap-3 text-gray-600 text-[10px] font-bold uppercase tracking-widest flex-wrap">
                 <span>{profile.email}</span>
                 <span className="w-1 h-1 bg-gray-800 rounded-full" />
                 <span>Verified Participant</span>
@@ -2606,15 +2285,15 @@ function ProfileView({ profile, rank, onOpenAscension }: { profile: UserProfile,
                 <div className="flex-1 text-center md:text-left space-y-2">
                   <h2 className="text-3xl font-black text-white italic tracking-tighter uppercase">Join Special Group / विशेष सदस्य बनें</h2>
                   <p className="text-gray-500 text-sm font-medium leading-relaxed max-w-xl">
-                    Unlock the full potential. Access all books, video breakdowns, and special training modules. Move from being a member to a guide.
+                    Unlock the exclusive full potential (<span className="line-through">Rs. 2,999</span> <strong className="text-amber-400 font-bold">Rs. 299</strong> only for the first 100 users!). Access all books, video breakdowns, and special training modules.
                   </p>
                   <div className="pt-4 flex flex-wrap gap-4 justify-center md:justify-start">
                     <button 
                       onClick={onOpenAscension}
-                      className="px-8 py-3 bg-white text-black text-[10px] font-black uppercase tracking-[0.3em] rounded-xl hover:bg-gray-200 transition-all shadow-xl flex flex-col items-center cursor-pointer font-bold"
+                      className="px-8 py-3 bg-white text-black text-[10px] font-black uppercase tracking-[0.3em] rounded-xl hover:bg-gray-200 transition-all shadow-xl flex flex-col items-center cursor-pointer font-bold animate-pulse"
                     >
                       <span>Unlock Special Access</span>
-                      <span className="text-[8px] normal-case tracking-normal opacity-60">विशेष एक्सेस लें</span>
+                      <span className="text-[8px] normal-case tracking-normal opacity-60">Rs. 299 (<s>Rs. 2,999</s>) • 1st 100 users offer</span>
                     </button>
                     <div className="px-6 py-3 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-gray-700 font-mono">
                       Special Membership Required
@@ -2735,7 +2414,13 @@ function LeaderboardView({ currentUserUid }: { currentUserUid?: string }) {
     return onSnapshot(q, (snap) => {
       setLeaders(snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserProfile)));
       setLoading(false);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'users/leaderboard'));
+    }, (error) => {
+      if (!isOfflineError(error)) {
+        handleFirestoreError(error, OperationType.LIST, 'users/leaderboard');
+      } else {
+        console.warn("Waiting for internet connection to fetch leaderboard...");
+      }
+    });
   }, []);
 
   return (
@@ -3049,7 +2734,13 @@ function ShopView({ profile }: { profile: UserProfile }) {
     return onSnapshot(q, (snap) => {
       setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() } as ShopProduct)));
       setLoading(false);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'shop'));
+    }, (error) => {
+      if (!isOfflineError(error)) {
+        handleFirestoreError(error, OperationType.LIST, 'shop');
+      } else {
+        console.warn("Waiting for internet connection to fetch shop catalog...");
+      }
+    });
   }, []);
 
   const handleProductClick = async (product: ShopProduct) => {
@@ -3172,13 +2863,13 @@ function JourneyModuleDetailModal({ module, isCompleted, onClose, onIntegrate }:
       initial={{ opacity: 0 }} 
       animate={{ opacity: 1 }} 
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/90 backdrop-blur-md overflow-y-auto"
     >
       <motion.div 
         initial={{ scale: 0.95, y: 20 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.95, y: 20 }}
-        className="bg-zinc-950 border border-white/10 rounded-[32px] md:rounded-[40px] max-w-2xl w-full text-left p-6 md:p-10 shadow-2xl relative overflow-hidden my-8"
+        className="bg-zinc-950 border border-white/10 rounded-[32px] md:rounded-[40px] max-w-2xl w-full text-left p-6 md:p-10 shadow-2xl relative overflow-hidden my-auto"
       >
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500" />
         
