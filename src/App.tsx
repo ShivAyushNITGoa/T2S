@@ -6,7 +6,7 @@ import {
   TrendingUp, Zap, Target, Settings, Edit2, Save,
   ShoppingCart, ArrowLeft, BarChart3, ExternalLink,
   DollarSign, Share2, Copy, Upload, Image as ImageIcon,
-  CreditCard, Check
+  CreditCard, Check, Smartphone, Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Logo from './components/Logo';
@@ -530,6 +530,8 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [quotaError, setQuotaError] = useState<any>(null);
   const [isOffline, setIsOffline] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showPWAInstallPrompt, setShowPWAInstallPrompt] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     const saved = localStorage.getItem('t2s_active_tab');
     if (saved) {
@@ -555,10 +557,17 @@ export default function App() {
     const handleOnline = () => {
       setIsOffline(false);
     };
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowPWAInstallPrompt(true);
+    };
+
     window.addEventListener('firestore-quota', handleQuota);
     window.addEventListener('firestore-offline', handleOffline);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       setIsOffline(true);
@@ -569,6 +578,7 @@ export default function App() {
       window.removeEventListener('firestore-offline', handleOffline);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
   }, []);
 
@@ -588,6 +598,19 @@ export default function App() {
         }
       });
   }, []);
+
+  const handlePWAInstall = async () => {
+    if (!deferredPrompt) {
+      setShowPWAInstallPrompt(false);
+      return;
+    }
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log("User install choice response:", outcome);
+    setDeferredPrompt(null);
+    setShowPWAInstallPrompt(false);
+  };
+
   const [isSidebarOpen, setSidebarOpen] = useState(false); // Default to closed on mobile
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   
@@ -1821,6 +1844,52 @@ export default function App() {
             setIsResetModalOpen(false);
           }} />
         )}
+
+        {showPWAInstallPrompt && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 50, scale: 0.95 }}
+            className="fixed bottom-6 right-6 z-[100] max-w-sm w-full bg-[#0a0a0a]/95 border border-amber-500/30 rounded-[28px] p-6 shadow-[0_20px_50px_rgba(0,0,0,0.8)] backdrop-blur-md text-left"
+          >
+            <div className="flex justify-between items-start">
+              <div className="flex gap-4 items-center">
+                <div className="w-12 h-12 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center shrink-0">
+                  <Smartphone className="w-6 h-6 text-amber-500" />
+                </div>
+                <div>
+                  <h4 className="text-white text-xs font-black uppercase tracking-wider font-display">T2S Nexus Mobile / मोबाइल</h4>
+                  <div className="text-[9px] text-gray-500 font-bold uppercase tracking-wider leading-none">Install for Standalone & Offline Access</div>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowPWAInstallPrompt(false)} 
+                className="p-1 px-2 rounded-full hover:bg-white/5 text-gray-500 hover:text-white transition-colors"
+                title="Dismiss"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="mt-4 text-xs text-gray-400 leading-relaxed font-sans">
+              Install the official **T2S Nexus** app on your Android/mobile device for 100% native speeds, zero URL bar, and offline memory syncing.
+            </p>
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={handlePWAInstall}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-amber-500 to-yellow-500 text-black text-[10px] font-black uppercase tracking-wider rounded-xl hover:scale-[1.02] active:scale-95 transition-all shadow-[0_0_15px_rgba(245,158,11,0.2)] cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Install / इनस्टॉल</span>
+              </button>
+              <button
+                onClick={() => setShowPWAInstallPrompt(false)}
+                className="px-4 py-2.5 bg-white/5 border border-white/5 text-gray-400 text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-white/10 transition-colors"
+              >
+                Later
+              </button>
+            </div>
+          </motion.div>
+        )}
       </AnimatePresence>
 
     </div>
@@ -2423,11 +2492,94 @@ function ProfileView({ profile, rank, onOpenAscension }: { profile: UserProfile,
           </div>
         </Card>
 
+        <div className="lg:col-span-2">
+          <AndroidInstallCard />
+        </div>
+
         <div className="lg:col-span-2 mt-8">
           <LeaderboardView currentUserUid={profile.uid} />
         </div>
       </div>
     </motion.div>
+  );
+}
+
+function AndroidInstallCard() {
+  const [installSupported, setInstallSupported] = useState(false);
+  const [deferredPromptState, setDeferredPromptState] = useState<any>(null);
+
+  useEffect(() => {
+    const handlePrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPromptState(e);
+      setInstallSupported(true);
+    };
+    window.addEventListener('beforeinstallprompt', handlePrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handlePrompt);
+  }, []);
+
+  const triggerInstall = async () => {
+    if (!deferredPromptState) {
+      alert("Mobile App Integration Verified! If you don't see the automated prompt, please tap your browser’s menu button (three vertical dots at top right or bottom of browser) and select 'Install app / Add to Home screen' to lock T2S Nexus on your launcher! (यदि स्वचालित इंस्टॉलेशन प्रॉम्प्ट नहीं आ रहा है, तो क्रोम या ब्राउज़र मेनू के तीन डॉट्स पर क्लिक करके 'Install app' या 'Add to home screen' विकल्प चुनें।)");
+      return;
+    }
+    deferredPromptState.prompt();
+    const { outcome } = await deferredPromptState.userChoice;
+    if (outcome === 'accepted') {
+      setInstallSupported(false);
+    }
+  };
+
+  return (
+    <Card className="bg-[#0c0c0c] border border-amber-500/20 shadow-[0_0_50px_rgba(245,158,11,0.05)] overflow-hidden">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 p-6">
+        <div className="flex items-center gap-5 text-left">
+          <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center shrink-0">
+            <Smartphone className="w-8 h-8 text-amber-500 animate-pulse" />
+          </div>
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-amber-500/10 border border-amber-500/20 text-[9px] font-bold text-amber-500 rounded-full font-mono uppercase tracking-widest select-none mb-1.5">
+              <span>Android & iOS Native App Installer</span>
+            </div>
+            <h4 className="text-white text-lg font-black uppercase tracking-tight">T2S Nexus Mobile Installer / मोबाइल ऐप</h4>
+            <p className="text-xs text-gray-400 max-w-xl mt-1 leading-relaxed">
+              Install the sovereign mobile client! Running T2S Nexus directly on your Android / iOS phone unlocks full standalone immersion, custom bottom layouts, faster launch, and persistent local databases for complete offline study.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={triggerInstall}
+          className="w-full md:w-auto px-6 py-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:scale-[1.02] text-black font-black uppercase tracking-widest text-[10px] rounded-xl shadow-[0_0_20px_rgba(245,158,11,0.2)] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+        >
+          <Download className="w-4 h-4" />
+          <span>Install App / कनवर्ट मोबाइल ऐप</span>
+        </button>
+      </div>
+      
+      <div className="border-t border-white/5 bg-black/40 p-6 grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+        <div className="space-y-1">
+          <span className="text-[10px] font-mono font-bold text-amber-500 uppercase">Step 01 • Connect URL</span>
+          <h5 className="text-white text-xs font-black uppercase tracking-tight leading-none pt-0.5">Mobile Access Route</h5>
+          <p className="text-[10px] text-gray-500 leading-normal">
+            Open Chrome, Samsung Web Browser, or any Safari browser on your phone and enter this active URL.
+          </p>
+        </div>
+        <div className="space-y-1">
+          <span className="text-[10px] font-mono font-bold text-amber-500 uppercase">Step 02 • Native Install</span>
+          <h5 className="text-white text-xs font-black uppercase tracking-tight leading-none pt-0.5">Launcher Integration</h5>
+          <p className="text-[10px] text-gray-500 leading-normal">
+            Select "Add to home screen" inside browser settings or click the button above to spawn the native icon package.
+          </p>
+        </div>
+        <div className="space-y-1">
+          <span className="text-[10px] font-mono font-bold text-amber-500 uppercase">Step 03 • Synchronized Core</span>
+          <h5 className="text-white text-xs font-black uppercase tracking-tight leading-none pt-0.5">Real-Time Ledger</h5>
+          <p className="text-[10px] text-gray-500 leading-normal">
+            Log in on mobile to automatically resume your daily streaks, module integrations, and premium access with 100% security.
+          </p>
+        </div>
+      </div>
+    </Card>
   );
 }
 
