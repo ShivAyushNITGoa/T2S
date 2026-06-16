@@ -119,10 +119,12 @@ async function testConnection() {
     await getDocFromServer(doc(db, 'test', 'connection'));
     console.log("Firestore connection verified");
   } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration or internet connection. The Firestore client reports being offline.");
+    if (isOfflineError(error)) {
+      console.warn("Firestore connection is offline, operating with persistent local cache fallback.");
+    } else if (error instanceof Error && error.message.includes('the client is offline')) {
+      console.warn("Please check your Firebase configuration or internet connection. The Firestore client reports being offline.");
     } else {
-      console.error("Firestore connection error:", error);
+      console.warn("Firestore initialization status:", error);
     }
   }
 }

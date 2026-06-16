@@ -94,7 +94,12 @@ function JourneyManager() {
         await addDoc(collection(db, 'journey'), data);
       }
       setEditing(null);
+      setStatus("Journey Module Saved Successfully");
     } catch (error) {
+      if (isOfflineError(error)) {
+        setEditing(null);
+        setStatus("Journey Module Saved (Offline)");
+      }
       handleFirestoreError(error, OperationType.WRITE, 'journey');
     }
   };
@@ -266,7 +271,12 @@ function ArchiveManager() {
         await addDoc(collection(db, 'archives'), data);
       }
       setEditing(null);
+      setStatus("Video Saved Successfully");
     } catch (error) {
+      if (isOfflineError(error)) {
+        setEditing(null);
+        setStatus("Video Saved (Offline Mode)");
+      }
       handleFirestoreError(error, OperationType.WRITE, 'archives');
     }
   };
@@ -498,6 +508,10 @@ function LibraryManager() {
       setEditing(null);
       setStatus("Records Updated Successfully");
     } catch (error) {
+      if (isOfflineError(error)) {
+        setEditing(null);
+        setStatus("Records Saved (Offline Mode)");
+      }
       handleFirestoreError(error, OperationType.WRITE, 'library');
     }
   };
@@ -966,6 +980,10 @@ function ShopManager() {
       setEditing(null);
       setStatus("Product Saved Successfully");
     } catch (error) {
+      if (isOfflineError(error)) {
+        setEditing(null);
+        setStatus("Product Saved (Offline Mode)");
+      }
       handleFirestoreError(error, OperationType.WRITE, 'shop');
     }
   };

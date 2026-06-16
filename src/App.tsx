@@ -529,6 +529,7 @@ export default function App() {
   const [showGateway, setShowGateway] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [quotaError, setQuotaError] = useState<any>(null);
+  const [isOffline, setIsOffline] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     const saved = localStorage.getItem('t2s_active_tab');
     if (saved) {
@@ -548,9 +549,26 @@ export default function App() {
     const handleQuota = (e: any) => {
       setQuotaError(e.detail || true);
     };
+    const handleOffline = () => {
+      setIsOffline(true);
+    };
+    const handleOnline = () => {
+      setIsOffline(false);
+    };
     window.addEventListener('firestore-quota', handleQuota);
+    window.addEventListener('firestore-offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setIsOffline(true);
+    }
+    
     return () => {
       window.removeEventListener('firestore-quota', handleQuota);
+      window.removeEventListener('firestore-offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
     };
   }, []);
 
@@ -658,13 +676,15 @@ export default function App() {
           
           // Initial fetch & Streak Calculation
           let userSnap: any = null;
-          let isOffline = false;
+          let isOfflineLocal = false;
           try {
             userSnap = await getDoc(userRef);
           } catch (err: any) {
             console.warn("Could not fetch user profile directly from Firestore:", err);
-            isOffline = isOfflineError(err);
-            if (!isOffline) {
+            isOfflineLocal = isOfflineError(err);
+            if (isOfflineLocal) {
+              setIsOffline(true);
+            } else {
               handleFirestoreError(err, OperationType.GET, `users/${firebaseUser.uid}`);
             }
           }
@@ -1249,6 +1269,12 @@ export default function App() {
             <h2 className="text-[10px] md:text-xs uppercase tracking-wider font-semibold text-gray-400 whitespace-nowrap">
               <span className="hidden sm:inline">Menu / </span><span className="text-white">{activeTab.replace('-', ' ')}</span>
             </h2>
+            {isOffline && (
+              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-[8px] md:text-[9px] font-bold text-amber-500 rounded-full font-mono uppercase tracking-widest select-none">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                <span>Offline / ऑफ़लाइन सिंक</span>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2 md:gap-6">
             {profile && (profile.isStrategist || profile.isAdmin) ? (
