@@ -6,7 +6,7 @@ import {
   TrendingUp, Zap, Target, Settings, Edit2, Save,
   ShoppingCart, ArrowLeft, BarChart3, ExternalLink,
   DollarSign, Share2, Copy, Upload, Image as ImageIcon,
-  CreditCard, Check, Smartphone, Download
+  CreditCard, Check, Smartphone, Download, Youtube, Brain, Volume2, Activity
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Logo from './components/Logo';
@@ -41,9 +41,10 @@ import {
 } from 'firebase/firestore';
 import { auth, db, handleFirestoreError, OperationType, isOfflineError } from './firebase';
 import { UserProfile, CommunityPost, TabType, JourneyModule, VideoArchive, LibraryBook, ShopProduct } from './types';
-import { RAW_JOURNEY_MODULES } from './journeyData';
+import { RAW_JOURNEY_MODULES, getCategoryForDay } from './journeyData';
 import { RANKS, getRankFromXP, getNextRank } from './constants';
 import AdminPanel from './components/AdminPanel';
+import SovereignLab from './components/SovereignLab';
 
 // --- Components ---
 
@@ -64,7 +65,7 @@ const ProgressBar = ({ progress, label }: { progress: number, label?: string }) 
 );
 
 const Card = ({ children, className = "", ...props }: { children: React.ReactNode, className?: string } & React.HTMLAttributes<HTMLDivElement>) => (
-  <div {...props} className={`bg-[#0a0a0a]/60 backdrop-blur-md border border-white/5 rounded-[32px] md:rounded-[40px] p-6 md:p-10 hover:border-white/20 transition-all duration-500 group ${className}`}>
+  <div {...props} className={`bg-[#0c0e14] border border-[#1d222e] rounded-[24px] md:rounded-[32px] p-6 md:p-10 hover:border-amber-500/20 shadow-[0_4px_30px_rgba(0,0,0,0.5)] transition-all duration-500 group ${className}`}>
     {children}
   </div>
 );
@@ -535,7 +536,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     const saved = localStorage.getItem('t2s_active_tab');
     if (saved) {
-      const validTabs: TabType[] = ['journey', 'archives', 'library', 'community', 'admin', 'profile', 'shop', 'affiliate', 'leaderboard'];
+      const validTabs: TabType[] = ['journey', 'archives', 'library', 'community', 'admin', 'profile', 'shop', 'affiliate', 'leaderboard', 'mindlab'];
       if (validTabs.includes(saved as TabType)) {
         return saved as TabType;
       }
@@ -616,6 +617,7 @@ export default function App() {
   
   // Dynamic Content
   const [journeyModules, setJourneyModules] = useState<JourneyModule[]>([]);
+  const [selectedJourneyCategory, setSelectedJourneyCategory] = useState<string>('All');
   const [archives, setArchives] = useState<VideoArchive[]>([]);
   const [library, setLibrary] = useState<LibraryBook[]>([]);
   const [stats, setStats] = useState({ users: 0, posts: 0, totalXp: 0 });
@@ -841,27 +843,57 @@ export default function App() {
     if (!user) return;
 
     const unsubPosts = onSnapshot(query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(50)), (snap) => {
-      setPosts(snap.docs.map(d => ({ id: d.id, ...d.data() } as CommunityPost)));
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() } as CommunityPost));
+      setPosts(data);
+      localStorage.setItem('t2s_posts_cache', JSON.stringify(data));
     }, (error) => {
       if (!isOfflineError(error)) {
         handleFirestoreError(error, OperationType.LIST, 'posts');
       } else {
         console.warn("Waiting for internet connection to sync community posts...");
       }
+      const cached = localStorage.getItem('t2s_posts_cache');
+      if (cached) {
+        try {
+          setPosts(JSON.parse(cached));
+        } catch (e) {
+          console.error("Failed to parse cached posts:", e);
+        }
+      } else {
+        // Fallback default posts if cache is empty
+        setPosts([
+          {
+            id: 'fallback-1',
+            authorId: 'system',
+            authorName: 'Sovereign Guide',
+            content: 'Maintain absolute composure. The network may experience high load, but your training continues offline. Stay focused.',
+            createdAt: { toDate: () => new Date() },
+            likes: 12,
+            likedBy: [],
+            authorPhotoURL: '',
+            isPremium: false
+          }
+        ]);
+      }
     });
 
     const unsubJourney = onSnapshot(query(collection(db, 'journey'), orderBy('day', 'asc')), (snap) => {
       const dbModules = snap.docs.map(d => ({ id: d.id, ...d.data() } as JourneyModule));
+      localStorage.setItem('t2s_journey_cache', JSON.stringify(dbModules));
       const merged = Array.from({ length: 100 }, (_, i) => {
         const d = i + 1;
         const exists = dbModules.find(m => m.day === d);
         if (exists) {
-          return exists;
+          return {
+            ...exists,
+            category: exists.category || getCategoryForDay(d)
+          } as JourneyModule;
         }
         const raw = RAW_JOURNEY_MODULES.find(m => m.day === d)!;
         return {
           id: `raw-${d}`,
-          ...raw
+          ...raw,
+          category: raw.category || getCategoryForDay(d)
         } as JourneyModule;
       });
       setJourneyModules(merged);
@@ -871,25 +903,97 @@ export default function App() {
       } else {
         console.warn("Waiting for internet connection to sync journey data...");
       }
+      const cached = localStorage.getItem('t2s_journey_cache');
+      let dbModules: JourneyModule[] = [];
+      if (cached) {
+        try {
+          dbModules = JSON.parse(cached);
+        } catch (e) {
+          console.error("Failed to parse cached journey:", e);
+        }
+      }
+      const merged = Array.from({ length: 100 }, (_, i) => {
+        const d = i + 1;
+        const exists = dbModules.find(m => m.day === d);
+        if (exists) {
+          return {
+            ...exists,
+            category: exists.category || getCategoryForDay(d)
+          } as JourneyModule;
+        }
+        const raw = RAW_JOURNEY_MODULES.find(m => m.day === d)!;
+        return {
+          id: `raw-${d}`,
+          ...raw,
+          category: raw.category || getCategoryForDay(d)
+        } as JourneyModule;
+      });
+      setJourneyModules(merged);
     });
 
     const unsubArchives = onSnapshot(query(collection(db, 'archives'), orderBy('createdAt', 'desc')), (snap) => {
-      setArchives(snap.docs.map(d => ({ id: d.id, ...d.data() } as VideoArchive)));
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() } as VideoArchive));
+      setArchives(data);
+      localStorage.setItem('t2s_archives_cache', JSON.stringify(data));
     }, (error) => {
       if (!isOfflineError(error)) {
         handleFirestoreError(error, OperationType.LIST, 'archives');
       } else {
         console.warn("Waiting for internet connection to sync video archives...");
       }
+      const cached = localStorage.getItem('t2s_archives_cache');
+      if (cached) {
+        try {
+          setArchives(JSON.parse(cached));
+        } catch (e) {
+          console.error("Failed to parse cached archives:", e);
+        }
+      } else {
+        // Fallback default archives
+        setArchives([
+          {
+            id: 'arch-1',
+            title: 'Sovereign Introduction / संप्रभु परिचय',
+            duration: '10:15',
+            views: '1.2K',
+            thumbnail: 'https://images.unsplash.com/photo-1518495973542-4542c06a5843?w=500',
+            videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+            isPremium: false
+          }
+        ]);
+      }
     });
 
     const unsubLibrary = onSnapshot(query(collection(db, 'library'), orderBy('title', 'asc')), (snap) => {
-      setLibrary(snap.docs.map(d => ({ id: d.id, ...d.data() } as LibraryBook)));
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() } as LibraryBook));
+      setLibrary(data);
+      localStorage.setItem('t2s_library_cache', JSON.stringify(data));
     }, (error) => {
       if (!isOfflineError(error)) {
         handleFirestoreError(error, OperationType.LIST, 'library');
       } else {
         console.warn("Waiting for internet connection to sync library books...");
+      }
+      const cached = localStorage.getItem('t2s_library_cache');
+      if (cached) {
+        try {
+          setLibrary(JSON.parse(cached));
+        } catch (e) {
+          console.error("Failed to parse cached library:", e);
+        }
+      } else {
+        // Fallback default library
+        setLibrary([
+          {
+            id: 'lib-1',
+            title: 'The Sovereign Will / संप्रभु इच्छाशक्ति',
+            author: 'Marcus Aurelius',
+            category: 'Philosophy',
+            excerpt: 'You have power over your mind - not outside events. Realize this, and you will find strength.',
+            coverUrl: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=300',
+            isPremium: false
+          }
+        ]);
       }
     });
 
@@ -1049,6 +1153,23 @@ export default function App() {
     }
   };
 
+  const claimSovereignXp = async (amount: number, reason: string) => {
+    if (!user || !profile) return;
+    const userRef = doc(db, 'users', user.uid);
+    const newXp = (profile.xp || 0) + amount;
+    const newLevel = Math.floor(newXp / 1000) + 1;
+    
+    try {
+      await updateDoc(userRef, {
+        xp: increment(amount),
+        level: newLevel,
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}/xp`);
+    }
+  };
+
   const createPost = async (content: string) => {
     if (!user || !content.trim()) return;
     try {
@@ -1195,7 +1316,7 @@ export default function App() {
   }
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-[#000000] text-gray-200 flex font-sans selection:bg-purple-500/30">
+    <div className="h-screen w-screen overflow-hidden bg-[#07080a] text-gray-200 flex font-sans selection:bg-amber-500/20">
       <div className="fixed inset-0 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] opacity-30 z-0" />
       
       {/* Mobile Overlay */}
@@ -1211,8 +1332,8 @@ export default function App() {
         )}
       </AnimatePresence>
       
-      <aside className={`fixed lg:sticky top-0 h-screen ${isSidebarOpen ? 'w-72 translate-x-0' : 'w-0 lg:w-20 -translate-x-full lg:translate-x-0'} bg-zinc-950 border-r border-zinc-850 transition-all duration-500 ease-in-out flex flex-col z-50 overflow-hidden`}>
-        <div className="h-24 flex items-center px-8 border-b border-zinc-850 overflow-hidden">
+      <aside className={`fixed lg:sticky top-0 h-screen ${isSidebarOpen ? 'w-72 translate-x-0' : 'w-0 lg:w-20 -translate-x-full lg:translate-x-0'} bg-[#0a0b10] border-r border-[#1a1d24] transition-all duration-500 ease-in-out flex flex-col z-50 overflow-hidden`}>
+        <div className="h-24 flex items-center px-8 border-b border-[#1a1d24] overflow-hidden">
           <Logo className="min-w-[40px] w-10 h-10" src={import.meta.env.VITE_APP_LOGO_URL || "/logo.png"} />
           <AnimatePresence>
             {isSidebarOpen && (
@@ -1229,11 +1350,63 @@ export default function App() {
           <NavItem icon={<Shield className="w-5 h-5 text-amber-500 animate-pulse" />} label="Intel Briefing" secondaryLabel="गोपनीय जानकारी" active={false} onClick={() => { setShowGateway(true); setSidebarOpen(false); }} collapsed={!isSidebarOpen} />
           <NavItem icon={<ShoppingCart className="w-5 h-5" />} label="Strategic Shop" secondaryLabel="रणनीतिक दुकान" active={activeTab === 'shop'} onClick={() => { setActiveTab('shop'); setSidebarOpen(false); }} collapsed={!isSidebarOpen} />
           <NavItem icon={<Flame className="w-5 h-5" />} label="100-Day Journey" secondaryLabel="१०० दिन का सफर" active={activeTab === 'journey'} onClick={() => { setActiveTab('journey'); setSidebarOpen(false); }} collapsed={!isSidebarOpen} />
+          <NavItem icon={<Brain className="w-5 h-5 text-amber-500" />} label="Sovereign Lab" secondaryLabel="मानसिक प्रयोगशाला" active={activeTab === 'mindlab'} onClick={() => { setActiveTab('mindlab'); setSidebarOpen(false); }} collapsed={!isSidebarOpen} />
           <NavItem icon={<PlayCircle className="w-5 h-5" />} label="Video Archives" secondaryLabel="वीडियो लाइब्रेरी" active={activeTab === 'archives'} onClick={() => { setActiveTab('archives'); setSidebarOpen(false); }} collapsed={!isSidebarOpen} />
           <NavItem icon={<BookOpen className="w-5 h-5" />} label="The Great Library" secondaryLabel="महान पुस्तकालय" active={activeTab === 'library'} onClick={() => { setActiveTab('library'); setSidebarOpen(false); }} collapsed={!isSidebarOpen} />
           <NavItem icon={<Users className="w-5 h-5" />} label="Community" secondaryLabel="समुदाय" active={activeTab === 'community'} onClick={() => { setActiveTab('community'); setSidebarOpen(false); }} collapsed={!isSidebarOpen} />
           <NavItem icon={<Trophy className="w-5 h-5" />} label="Leaderboard" secondaryLabel="लीडरबोर्ड" active={activeTab === 'leaderboard'} onClick={() => { setActiveTab('leaderboard'); setSidebarOpen(false); }} collapsed={!isSidebarOpen} />
           <NavItem icon={<User className="w-5 h-5" />} label="Profile Hub" secondaryLabel="प्रोफ़ाइल हब" active={activeTab === 'profile'} onClick={() => { setActiveTab('profile'); setSidebarOpen(false); }} collapsed={!isSidebarOpen} />
+          
+          <a
+            href="https://www.youtube.com/@Talk2Society"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-300 relative group text-zinc-400 hover:text-red-500 hover:bg-red-500/5"
+          >
+            <div className="shrink-0 transition-transform duration-300 group-hover:scale-110">
+              <Youtube className="w-5 h-5 text-red-500" />
+            </div>
+            {isSidebarOpen && (
+              <div className="flex flex-col text-left overflow-hidden min-w-0">
+                <span className="text-xs font-bold uppercase tracking-wider leading-none">YouTube Channel</span>
+                <span className="text-[9px] font-medium tracking-wide leading-none mt-1 uppercase text-zinc-500 group-hover:text-red-400/80">यूट्यूब चैनल</span>
+              </div>
+            )}
+          </a>
+
+          <a
+            href="https://t.me/Talk2Society"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-300 relative group text-zinc-400 hover:text-blue-400 hover:bg-blue-500/5"
+          >
+            <div className="shrink-0 transition-transform duration-300 group-hover:scale-110">
+              <Send className="w-5 h-5 text-blue-400 fill-blue-500/10" />
+            </div>
+            {isSidebarOpen && (
+              <div className="flex flex-col text-left overflow-hidden min-w-0">
+                <span className="text-xs font-bold uppercase tracking-wider leading-none">Telegram Channel</span>
+                <span className="text-[9px] font-medium tracking-wide leading-none mt-1 uppercase text-zinc-500 group-hover:text-blue-300">टेलीग्राम चैनल</span>
+              </div>
+            )}
+          </a>
+
+          <a
+            href="https://t.me/+DlpQ9XstJ2VjYzU1"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-300 relative group text-zinc-400 hover:text-blue-400 hover:bg-blue-500/5"
+          >
+            <div className="shrink-0 transition-transform duration-300 group-hover:scale-110">
+              <Users className="w-5 h-5 text-blue-400" />
+            </div>
+            {isSidebarOpen && (
+              <div className="flex flex-col text-left overflow-hidden min-w-0">
+                <span className="text-xs font-bold uppercase tracking-wider leading-none">Telegram Group</span>
+                <span className="text-[9px] font-medium tracking-wide leading-none mt-1 uppercase text-zinc-500 group-hover:text-blue-300">टेलीग्राम ग्रुप</span>
+              </div>
+            )}
+          </a>
           
           {profile?.isAdmin && (
             <NavItem icon={<Settings className="w-5 h-5" />} label="Admin Panel" secondaryLabel="एडमिन कंट्रोल" active={activeTab === 'admin'} onClick={() => { setActiveTab('admin'); setSidebarOpen(false); }} collapsed={!isSidebarOpen} />
@@ -1284,7 +1457,7 @@ export default function App() {
       </aside>
 
       <main className="flex-1 flex flex-col h-full min-h-0 min-w-0 overflow-hidden relative z-10">
-        <header className="h-20 md:h-24 border-b border-white/5 bg-[#050505]/80 backdrop-blur-md flex items-center justify-between px-4 md:px-10 sticky top-0 z-30 shrink-0">
+        <header className="h-20 md:h-24 border-b border-[#1a1d24] bg-[#0c0e14]/90 backdrop-blur-md flex items-center justify-between px-4 md:px-10 sticky top-0 z-30 shrink-0">
           <div className="flex items-center gap-1.5 md:gap-4">
             <button onClick={() => setSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-white/5 rounded-lg transition-colors">
               {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -1327,7 +1500,7 @@ export default function App() {
         </header>
 
         <section className="flex-1 overflow-y-auto min-h-0 p-4 sm:p-6 md:p-12 lg:p-16 max-w-7xl w-full mx-auto">
-          {quotaError && (
+          {quotaError && profile?.isAdmin && (
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }} 
               animate={{ opacity: 1, scale: 1 }} 
@@ -1530,64 +1703,110 @@ export default function App() {
                   />
                 )}
 
-                {journeyModules.length === 0 ? <NoContent label="Journey Modules" /> : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {journeyModules.map((module) => {
-                      const isCompleted = profile?.completedDays.includes(module.day);
-                      const isNext = (profile?.completedDays.length || 0) + 1 === module.day;
-                      const journeyLocked = !isCompleted && !isNext && module.day > 1;
-                      const isPremiumLocked = module.isPremium && !profile?.isStrategist && !profile?.isAdmin;
-                      const finalLocked = journeyLocked || isPremiumLocked;
+                {/* Category Filters */}
+                <div className="flex flex-wrap items-center gap-2 pb-6 border-b border-white/5">
+                  <span className="text-[10px] uppercase font-bold tracking-widest text-gray-500 mr-2">Filter Protocols:</span>
+                  {[
+                    'All',
+                    'Manipulation',
+                    'Body Language',
+                    'Strategic Thinking',
+                    'Discipline',
+                    'Mindset',
+                    'Mystery & Presence'
+                  ].map((category) => {
+                    const isSelected = selectedJourneyCategory === category;
+                    return (
+                      <button
+                        key={category}
+                        onClick={() => setSelectedJourneyCategory(category)}
+                        className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all duration-300 border ${
+                          isSelected 
+                            ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.15)]' 
+                            : 'bg-white/5 text-gray-400 border-white/5 hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        {category}
+                      </button>
+                    );
+                  })}
+                </div>
 
-                      return (
-                        <Card 
-                          key={module.id} 
-                          id={`module-${module.id}`} 
-                          className={`cursor-pointer transition-all duration-300 relative overflow-hidden group ${isPremiumLocked ? 'border-amber-500/20 hover:border-amber-500/50 bg-amber-500/[0.01]' : journeyLocked ? 'opacity-40 grayscale pointer-events-none' : 'hover:border-white/20 hover:bg-white/[0.02]'}`}
-                          onClick={() => {
-                            if (isPremiumLocked) {
-                              setIsAscensionOpen(true);
-                            } else if (!journeyLocked) {
-                              setSelectedJourneyModule(module);
-                            }
-                          }}
-                        >
-                          <div className="flex justify-between items-start mb-6">
-                            <span className="text-5xl font-black text-white/5 group-hover:text-amber-500/20 transition-colors duration-500 font-mono">
-                              {module.day < 10 ? `0${module.day}` : module.day}
-                            </span>
-                            {isCompleted ? <CheckCircle2 className="w-5 h-5 text-white" /> : isPremiumLocked ? <Zap className="w-5 h-5 text-amber-500 fill-amber-500 animate-pulse" /> : journeyLocked ? <Lock className="w-5 h-5 text-gray-700" /> : <ChevronRight className="w-5 h-5 text-white" />}
-                          </div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <h3 className="text-lg font-bold text-white leading-tight">
-                              {journeyLocked ? "🔒 Locked Protocol / लॉक प्रोटोकॉल" : isPremiumLocked ? `🔒 Premium: ${module.title}` : module.title}
-                            </h3>
-                            {module.isPremium && <Zap className="w-4 h-4 text-amber-500 fill-amber-500 shrink-0" />}
-                          </div>
-                          <p className="text-xs text-gray-500 leading-relaxed mb-6 h-12 overflow-hidden line-clamp-3">
-                            {journeyLocked 
-                              ? "इस नियम को खोलने के लिए पिछले दिनों के कार्य पूरे करें। / Complete the previous days' protocols to unlock." 
-                              : isPremiumLocked 
-                              ? "यह रणनीतिक विषय प्रीमियम सदस्यों के लिए है। अनलॉक करने के लिए क्लिक करें। / This strategy is reserved for Premium sovereigns. Click to request unlock."
-                              : module.description}
-                          </p>
-                          {!finalLocked && !isCompleted && (
-                            <button 
-                              onClick={(e) => { 
-                                e.stopPropagation(); 
-                                completeDay(module.day); 
-                              }} 
-                              className="w-full py-3 bg-white text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-200 transition-all flex flex-col items-center"
-                            >
-                              <span className="flex items-center gap-2"><Zap className="w-3 h-3" /> Integrate</span>
-                              <span className="text-[8px] normal-case tracking-normal opacity-50">शुरू करें</span>
-                            </button>
-                          )}
-                        </Card>
-                      );
-                    })}
-                  </div>
-                )}
+                {journeyModules.length === 0 ? <NoContent label="Journey Modules" /> : (() => {
+                  const filteredModules = selectedJourneyCategory === 'All'
+                    ? journeyModules
+                    : journeyModules.filter(m => m.category === selectedJourneyCategory);
+
+                  if (filteredModules.length === 0) {
+                    return <NoContent label={`Journey Modules in ${selectedJourneyCategory}`} />;
+                  }
+
+                  return (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {filteredModules.map((module) => {
+                        const isCompleted = profile?.completedDays.includes(module.day);
+                        const isNext = (profile?.completedDays.length || 0) + 1 === module.day;
+                        const journeyLocked = !isCompleted && !isNext && module.day > 1;
+                        const isPremiumLocked = module.isPremium && !profile?.isStrategist && !profile?.isAdmin;
+                        const finalLocked = journeyLocked || isPremiumLocked;
+
+                        return (
+                          <Card 
+                            key={module.id} 
+                            id={`module-${module.id}`} 
+                            className={`cursor-pointer transition-all duration-300 relative overflow-hidden group ${isPremiumLocked ? 'border-amber-500/20 hover:border-amber-500/50 bg-amber-500/[0.01]' : journeyLocked ? 'opacity-40 grayscale pointer-events-none' : 'hover:border-white/20 hover:bg-white/[0.02]'}`}
+                            onClick={() => {
+                              if (isPremiumLocked) {
+                                  setIsAscensionOpen(true);
+                              } else if (!journeyLocked) {
+                                  setSelectedJourneyModule(module);
+                              }
+                            }}
+                          >
+                            <div className="flex justify-between items-start mb-6">
+                              <div className="flex flex-col gap-1.5 items-start">
+                                <span className="text-5xl font-black text-white/5 group-hover:text-amber-500/20 transition-colors duration-500 font-mono leading-none">
+                                  {module.day < 10 ? `0${module.day}` : module.day}
+                                </span>
+                                {module.category && !journeyLocked && (
+                                  <span className="text-[9px] font-black uppercase tracking-widest text-amber-500/80 bg-amber-500/5 border border-amber-500/10 px-2 py-0.5 rounded-md font-mono mt-2">
+                                    {module.category}
+                                  </span>
+                                )}
+                              </div>
+                              {isCompleted ? <CheckCircle2 className="w-5 h-5 text-white" /> : isPremiumLocked ? <Zap className="w-5 h-5 text-amber-500 fill-amber-500 animate-pulse" /> : journeyLocked ? <Lock className="w-5 h-5 text-gray-700" /> : <ChevronRight className="w-5 h-5 text-white" />}
+                            </div>
+                            <div className="flex items-center gap-2 mb-2">
+                              <h3 className="text-lg font-bold text-white leading-tight">
+                                {journeyLocked ? "🔒 Locked Protocol / लॉक प्रोटोकॉल" : isPremiumLocked ? `🔒 Premium: ${module.title}` : module.title}
+                              </h3>
+                              {module.isPremium && <Zap className="w-4 h-4 text-amber-500 fill-amber-500 shrink-0" />}
+                            </div>
+                            <p className="text-xs text-gray-500 leading-relaxed mb-6 h-12 overflow-hidden line-clamp-3">
+                              {journeyLocked 
+                                ? "इस नियम को खोलने के लिए पिछले दिनों के कार्य पूरे करें। / Complete the previous days' protocols to unlock." 
+                                : isPremiumLocked 
+                                ? "यह रणनीतिक विषय प्रीमियम सदस्यों के लिए है। अनलॉक करने के लिए क्लिक करें। / This strategy is reserved for Premium sovereigns. Click to request unlock."
+                                : module.description}
+                            </p>
+                            {!finalLocked && !isCompleted && (
+                              <button 
+                                onClick={(e) => { 
+                                  e.stopPropagation(); 
+                                  completeDay(module.day); 
+                                }} 
+                                className="w-full py-3 bg-white text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-200 transition-all flex flex-col items-center"
+                              >
+                                <span className="flex items-center gap-2"><Zap className="w-3 h-3" /> Integrate</span>
+                                <span className="text-[8px] normal-case tracking-normal opacity-50">शुरू करें</span>
+                              </button>
+                            )}
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </motion.div>
             )}
 
@@ -1610,30 +1829,34 @@ export default function App() {
             )}
 
             {activeTab === 'library' && (
-              <motion.div key="library" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {library.length === 0 ? (
-          <div className="lg:col-span-3">
-            <NoContent label="Library Archives" />
-            {profile?.isAdmin && (
-              <div className="text-center">
-                <button 
-                  onClick={() => setActiveTab('admin')} 
-                  className="text-amber-500 text-xs font-black uppercase tracking-widest border-b border-amber-500/20 hover:border-amber-500 transition-all"
-                >
-                  Go to Command Panel to Seed Library
-                </button>
-              </div>
-            )}
-          </div>
-        ) : library.map(b => (
-                  <BookCard 
-                    key={b.id} 
-                    book={b} 
-                    isLocked={b.isPremium && !profile?.isStrategist && !profile?.isAdmin}
-                    onClick={() => setSelectedBook(b)}
-                    onUnlockClick={() => setIsAscensionOpen(true)}
-                  />
-                ))}
+              <motion.div key="library" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8 w-full">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {library.length === 0 ? (
+                    <div className="lg:col-span-3">
+                      <NoContent label="Library Archives" />
+                      {profile?.isAdmin && (
+                        <div className="text-center">
+                          <button 
+                            onClick={() => setActiveTab('admin')} 
+                            className="text-amber-500 text-xs font-black uppercase tracking-widest border-b border-amber-500/20 hover:border-amber-500 transition-all"
+                          >
+                            Go to Command Panel to Seed Library
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    library.map(b => (
+                      <BookCard 
+                        key={b.id} 
+                        book={b} 
+                        isLocked={b.isPremium && !profile?.isStrategist && !profile?.isAdmin}
+                        onClick={() => setSelectedBook(b)}
+                        onUnlockClick={() => setIsAscensionOpen(true)}
+                      />
+                    ))
+                  )}
+                </div>
               </motion.div>
             )}
 
@@ -1669,6 +1892,12 @@ export default function App() {
                 <div className="max-w-5xl">
                    <LeaderboardView currentUserUid={user?.uid} />
                 </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'mindlab' && (
+              <motion.div key="mindlab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <SovereignLab profile={profile} onXpEarned={claimSovereignXp} />
               </motion.div>
             )}
 
@@ -1733,7 +1962,7 @@ export default function App() {
             maxWidth="max-w-7xl"
           >
             <div className="h-full flex flex-col min-h-[85vh]">
-              <div className="p-8 border-b border-white/5 bg-black/40 shrink-0 flex flex-col md:flex-row justify-between gap-6">
+              <div className="p-8 border-b border-white/5 bg-black/40 shrink-0 flex flex-col md:flex-row justify-between gap-6 items-start md:items-center">
                 <div className="flex gap-8 items-start">
                   <div className="w-20 h-28 bg-neutral-900 border border-white/5 rounded-xl flex items-center justify-center shadow-2xl shrink-0">
                     <BookOpen className="w-8 h-8 text-amber-500" />
@@ -2425,7 +2654,22 @@ function ProfileView({ profile, rank, onOpenAscension }: { profile: UserProfile,
             <span className="text-[10px] text-amber-500 font-black uppercase tracking-widest">Active / सक्रिय</span>
           </div>
           <div className="space-y-8">
-            <ProgressBar progress={(profile.xp % 1000) / 10} label="Current Level Progress" />
+            {(() => {
+              const currentRank = getRankFromXP(profile.xp || 0);
+              const nextRankInfo = getNextRank(profile.xp || 0);
+              const xpInCurrentRank = (profile.xp || 0) - currentRank.threshold;
+              const xpNeededForNext = nextRankInfo.rank ? nextRankInfo.rank.threshold - currentRank.threshold : 1000;
+              const progress = nextRankInfo.rank ? (xpInCurrentRank / xpNeededForNext) * 100 : 100;
+              return (
+                <div className="space-y-2 p-3.5 bg-white/[0.02] border border-white/5 rounded-2xl">
+                  <div className="flex justify-between items-center text-[10px] font-mono font-black uppercase text-zinc-400">
+                    <span className="flex items-center gap-1"><span className="text-xs">{currentRank.icon}</span> {currentRank.name}</span>
+                    <span>{nextRankInfo.rank ? `Next: ${nextRankInfo.rank.name}` : "Max Rank"}</span>
+                  </div>
+                  <ProgressBar progress={progress} label={nextRankInfo.rank ? `${nextRankInfo.xpNeeded} XP for Rank Ascension` : "Ultimate Sovereignty Reached"} />
+                </div>
+              );
+            })()}
             <ProgressBar progress={(profile.completedDays || []).length} label="100 Day Goal Status" />
             <ProgressBar progress={Math.min(100, (profile.level || 1) * 15)} label="Overall Growth" />
           </div>
@@ -2910,7 +3154,9 @@ function ShopView({ profile }: { profile: UserProfile }) {
   useEffect(() => {
     const q = query(collection(db, 'shop'), orderBy('category', 'asc'));
     return onSnapshot(q, (snap) => {
-      setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() } as ShopProduct)));
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() } as ShopProduct));
+      setProducts(data);
+      localStorage.setItem('t2s_shop_cache', JSON.stringify(data));
       setLoading(false);
     }, (error) => {
       if (!isOfflineError(error)) {
@@ -2918,6 +3164,15 @@ function ShopView({ profile }: { profile: UserProfile }) {
       } else {
         console.warn("Waiting for internet connection to fetch shop catalog...");
       }
+      const cached = localStorage.getItem('t2s_shop_cache');
+      if (cached) {
+        try {
+          setProducts(JSON.parse(cached));
+        } catch (e) {
+          console.error("Failed to parse cached shop products:", e);
+        }
+      }
+      setLoading(false);
     });
   }, []);
 

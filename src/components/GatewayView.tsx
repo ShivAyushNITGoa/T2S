@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { 
   Shield, Zap, TrendingUp, BookOpen, Terminal, Users, Target, 
   ChevronRight, Lock, Eye, Award, Globe, FileText, ArrowRight,
-  Sparkles, HelpCircle, AlertTriangle, ShoppingCart
+  Sparkles, HelpCircle, AlertTriangle, ShoppingCart, Youtube, Send, ChevronDown
 } from 'lucide-react';
 
 interface GatewayViewProps {
@@ -36,16 +36,17 @@ export default function GatewayView({
   onOpenAscension
 }: GatewayViewProps) {
   const [activeTab, setActiveTab] = useState<'briefing' | 'philosophy' | 'pillars'>('briefing');
+  const [activeFaq, setActiveFaq] = useState<number | null>(null);
 
   return (
-    <div className="min-h-screen bg-black text-white relative overflow-x-hidden font-sans selection:bg-amber-500 selection:text-black">
+    <div className="min-h-screen bg-[#07080a] text-white relative overflow-x-hidden font-sans selection:bg-amber-500 selection:text-black">
       {/* Abstract Background Grid & Gradients */}
       <div className="absolute inset-0 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] opacity-25 z-0" />
       <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-amber-500/5 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-10 right-1/4 w-[600px] h-[600px] bg-zinc-800/10 rounded-full blur-[150px] pointer-events-none" />
 
       {/* Decorative Top Bar */}
-      <div className="sticky top-0 z-50 bg-black/90 backdrop-blur-md border-b border-zinc-800 py-3 md:py-4 px-4 md:px-12 flex justify-between items-center transition-all">
+      <div className="sticky top-0 z-50 bg-[#0c0e14]/90 backdrop-blur-md border-b border-[#1a1d24] py-3 md:py-4 px-4 md:px-12 flex justify-between items-center transition-all">
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <img 
             src="/logo.png" 
@@ -60,6 +61,18 @@ export default function GatewayView({
         </div>
 
         <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+          <a
+            href="https://www.youtube.com/@Talk2Society"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-2.5 sm:px-4 py-1.5 sm:py-2 bg-red-600/10 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/30 text-[9px] sm:text-[10px] font-mono font-black uppercase tracking-widest rounded-lg transition-all flex items-center gap-1 sm:gap-1.5 cursor-pointer shadow-md shrink-0"
+          >
+            <Youtube className="w-3.5 h-3.5" />
+            <span>
+              <span className="hidden sm:inline">YOUTUBE / </span>चैनल
+            </span>
+          </a>
+
           {onEnterWithTab && (
             <button
               onClick={() => onEnterWithTab('shop')}
@@ -248,7 +261,7 @@ export default function GatewayView({
           )}
 
           {/* Elegant Firestore Quota Exceeded / Exception Handler Box */}
-          {quotaError && (
+          {quotaError && profile?.isAdmin && (
             <motion.div 
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
@@ -338,37 +351,49 @@ export default function GatewayView({
             </motion.div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
             
             {/* Digital Front (YouTube) */}
             <motion.div 
               whileHover={{ y: -5 }}
-              className="bg-zinc-900 border border-zinc-750 rounded-3xl p-6 md:p-8 space-y-6 relative overflow-hidden"
+              className="bg-zinc-900 border border-zinc-750 rounded-3xl p-6 md:p-8 space-y-6 relative overflow-hidden flex flex-col justify-between"
             >
-
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-red-500/10 border border-red-500/30 text-red-500 rounded-2xl">
-                  <Globe className="w-6 h-6" />
+              <div className="space-y-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-red-500/10 border border-red-500/30 text-red-500 rounded-2xl">
+                    <Globe className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-white uppercase tracking-tight">The Digital Front</h3>
+                    <span className="text-xs font-bold text-zinc-300 font-mono">यूट्यूब और सामग्री कला</span>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-black text-white uppercase tracking-tight">The Digital Front</h3>
-                  <span className="text-xs font-bold text-zinc-300 font-mono">यूट्यूब और सामग्री कला</span>
+
+                <div className="space-y-5 pt-2 border-t border-zinc-800 text-sm font-mono">
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-zinc-400 font-bold">HUNTERS AWAKENED:</span>
+                    <span className="text-xl font-black font-sans text-red-400">15,000+ Subscribers</span>
+                  </div>
+                  <p className="text-zinc-250 font-semibold text-xs leading-relaxed">
+                    <strong className="text-zinc-100 font-bold">Strategy:</strong> 15-20 मिनट की गहरी मनोवैज्ञानिक मास्टरक्लास और 30-सेकंड के तीखे 'Reality Checks' (Reels)।
+                  </p>
+                  <div className="p-4 bg-zinc-950 border border-zinc-800 rounded-2xl space-y-1">
+                    <span className="text-[10px] text-zinc-400 font-black uppercase tracking-widest block">VISUAL STYLE / आभास शैली</span>
+                    <span className="text-xs font-black text-white block">Noir, Cinematic, Chiaroscuro lighting</span>
+                    <span className="text-[11px] text-zinc-300 block font-semibold italic">अँधेरे और उजाले का खेल जो रहस्य को बढ़ाता है।</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-5 pt-2 border-t border-zinc-800 text-sm font-mono">
-                <div className="flex items-baseline justify-between">
-                  <span className="text-zinc-400 font-bold">HUNTERS AWAKENED:</span>
-                  <span className="text-xl font-black font-sans text-red-400">15,000+ Subscribers</span>
-                </div>
-                <p className="text-zinc-250 font-semibold text-xs leading-relaxed">
-                  <strong className="text-zinc-100 font-bold">Strategy:</strong> 15-20 मिनट की गहरी मनोवैज्ञानिक मास्टरक्लास और 30-सेकंड के तीखे 'Reality Checks' (Reels)।
-                </p>
-                <div className="p-4 bg-zinc-950 border border-zinc-800 rounded-2xl space-y-1">
-                  <span className="text-[10px] text-zinc-400 font-black uppercase tracking-widest block">VISUAL STYLE / आभास शैली</span>
-                  <span className="text-xs font-black text-white block">Noir, Cinematic, Chiaroscuro lighting</span>
-                  <span className="text-[11px] text-zinc-300 block font-semibold italic">अँधेरे और उजाले का खेल जो रहस्य को बढ़ाता है।</span>
-                </div>
+              <div className="pt-4">
+                <a
+                  href="https://www.youtube.com/@Talk2Society"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-mono font-black text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 font-bold shadow-md"
+                >
+                  <Youtube className="w-4 h-4" /> Visit Channel / चैनल पर जाएं
+                </a>
               </div>
             </motion.div>
 
@@ -401,7 +426,7 @@ export default function GatewayView({
                       <span className="font-bold">🎭 Machiavellian Guide</span>
                       <span className="text-amber-400 font-black">800 XP</span>
                     </div>
-                    <div className="flex justify-between items-center bg-zinc-950/50 p-2 rounded-lg border border-zinc-805">
+                    <div className="flex justify-between items-center bg-zinc-950/50 p-2 rounded-lg border border-zinc-850">
                       <span className="font-bold">🧠 Cognitive Defense Shield</span>
                       <span className="text-amber-400 font-black">1200 XP</span>
                     </div>
@@ -416,6 +441,58 @@ export default function GatewayView({
                 >
                   <ShoppingCart className="w-4 h-4" /> Enter Store / स्टोर में प्रवेश
                 </button>
+              </div>
+            </motion.div>
+
+            {/* Underground Tribe (Telegram) Card */}
+            <motion.div 
+              whileHover={{ y: -5 }}
+              className="bg-zinc-900 border border-[#1a1d24] rounded-3xl p-6 md:p-8 space-y-6 relative overflow-hidden flex flex-col justify-between"
+            >
+              <div className="space-y-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-2xl">
+                    <Send className="w-6 h-6 fill-blue-500/10" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-white uppercase tracking-tight">Underground Tribe</h3>
+                    <span className="text-xs font-bold text-zinc-300 font-mono">टेलीग्राम समुदाय</span>
+                  </div>
+                </div>
+
+                <div className="space-y-5 pt-2 border-t border-zinc-800 text-sm font-mono">
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-zinc-400 font-bold">SOVEREIGN NETWORK:</span>
+                    <span className="text-xl font-black font-sans text-blue-400">Tribe Hub</span>
+                  </div>
+                  <p className="text-zinc-250 font-semibold text-xs leading-relaxed">
+                    <strong className="text-zinc-100 font-bold">Community:</strong> दैनिक रणनीतिक अपडेट, महत्वपूर्ण पीडीएफ टूल्स, डार्क साइकोलॉजी रिसोर्सेज और संप्रभु सदस्यों के बीच चर्चा।
+                  </p>
+                  <div className="p-4 bg-zinc-950 border border-zinc-800 rounded-2xl space-y-1">
+                    <span className="text-[10px] text-zinc-400 font-black uppercase tracking-widest block">CHANNELS & GROUPS</span>
+                    <span className="text-xs font-black text-white block">Official Channel & Private Group Link</span>
+                    <span className="text-[11px] text-zinc-300 block font-semibold italic">सच्ची मानसिक स्वतंत्रता और शक्ति के मार्ग पर चलने वालों के लिए।</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2.5 pt-4">
+                <a
+                  href="https://t.me/Talk2Society"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-mono font-black text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 font-bold shadow-md"
+                >
+                  <Send className="w-4 h-4 fill-white/10" /> Join Channel / चैनल
+                </a>
+                <a
+                  href="https://t.me/+DlpQ9XstJ2VjYzU1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 font-mono font-black text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 font-bold shadow-md"
+                >
+                  <Users className="w-4 h-4" /> Join Group / ग्रुप चर्चा
+                </a>
               </div>
             </motion.div>
 
@@ -620,6 +697,101 @@ export default function GatewayView({
               </div>
             </div>
 
+          </div>
+
+          {/* Interactive FAQ / Orientation Accordion Section */}
+          <div className="bg-zinc-950/40 border border-zinc-800/80 rounded-[32px] p-6 md:p-10 space-y-8 max-w-4xl mx-auto my-12">
+            <div className="text-center space-y-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-[10px] font-mono font-black uppercase tracking-widest text-amber-400 rounded-full">
+                <HelpCircle className="w-3.5 h-3.5" /> SYSTEM ORIENTATION / अक्सर पूछे जाने वाले सवाल
+              </div>
+              <h2 className="text-2xl md:text-3xl font-display font-black text-white uppercase tracking-tight">
+                Frequently Asked Questions
+              </h2>
+              <p className="text-zinc-400 text-xs md:text-sm max-w-xl mx-auto">
+                Discover how the 100-Day Journey works, how to accumulate XP points, and how the sovereign community interacts.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {[
+                {
+                  q: "What is the 100-Day Journey? / १०० दिन का सफर क्या है?",
+                  a: "The 100-Day Journey is a highly structured mental strength, discipline, and psychological training blueprint. Each day unlocks a specific psychological command, strategy, and daily reflection. Complete your daily reflection after 22:00 IST to mark your task complete, boost your streak, and unlock the next day's elite command.",
+                  hin: "१००-दिन का सफर एक मानसिक मजबूती और डार्क साइकोलॉजी आत्म-सुरक्षा कार्यक्रम है। प्रतिदिन आपके लिए एक नया रणनीतिक विचार और उसकी आत्म-सुरक्षा युक्ति खोली जाती है। दैनिक चिंतन पूरा करने पर आप आगे बढ़ सकते हैं।"
+                },
+                {
+                  q: "How do I earn XP and level up my rank? / मैं XP कैसे अर्जित करूँ और रैंक कैसे बढ़ाऊँ?",
+                  a: "Every single day you integrate and complete awards you +100 XP points. As your cumulative XP grows, you automatically ascend through 6 sovereign tiers: Pawn ♟️ (0 XP), Knight ♞ (500 XP), Strategist 🏹 (1500 XP), Commander 🎖️ (3500 XP), Overlord 🔥 (7500 XP), and finally Sovereign 👑 (15000+ XP). Your active rank appears on your sidebar and leaderboards.",
+                  hin: "प्रत्येक दैनिक कार्य को पूरा करने पर आपको +100 XP प्राप्त होते हैं। आपके संचित अंकों के आधार पर आपकी रैंक प्यादा (Pawn) से सर्वसत्ता शासक (Sovereign) तक बढ़ती है।"
+                },
+                {
+                  q: "What benefits does Special/Premium Access provide? / प्रीमियम/विशेष सदस्यता के क्या लाभ हैं?",
+                  a: "Standard accounts have full access to the daily 100-Day Journey calendar. Special/Premium Access (Sovereign Strategist) unlocks unlimited privileges across the portal, including the Great Library (PDF/EPUB manual files, cheat sheets), complete Video Archives breakdowns, custom premium community capabilities, and direct access to personal consultation queues.",
+                  hin: "प्रीमियम सदस्यता (Sovereign Full Pass) आपको महान पुस्तकालय (The Great Library), विशेष विश्लेषण वीडियो, और बंद ग्रुप के पीडीएफ टूल्स की पूरी पहुंच प्रदान करती है।"
+                },
+                {
+                  q: "How are the YouTube and Telegram groups integrated? / यूट्यूब और टेलीग्राम ग्रुप्स कैसे जुड़े हैं?",
+                  a: "YouTube (Talk2Society) is our official public education front delivering deep mental masterclasses. Telegram is our subterranean hub where active pdf materials, immediate notifications, and private discussion forums are hosted directly by A. K. Chandradipti. We highly recommend connecting both to stay ahead of the curve.",
+                  hin: "यूट्यूब मुख्य मास्टरक्लास फ्रंट है, जबकि टेलीग्राम हमारे संप्रभु समाज का गुप्त कम्युनिटी हब है जहां जरूरी दस्तावेज और चर्चाएं साझा की जाती हैं।"
+                },
+                {
+                  q: "What is the Strike System (Lifeline warning)? / स्ट्राइक सिस्टम क्या है?",
+                  a: "If you fail to complete your daily protocol reflection, you receive a strike warning. If you do not complete the next protocol within 24 hours, your entire 100-day progress resets back to Day 1. This system forces absolute commitment and self-discipline.",
+                  hin: "यदि आप किसी भी दिन अपना दैनिक चिंतन दर्ज करने से चूक जाते हैं, तो आपको एक स्ट्राइक चेतावनी मिलेगी। २४ घंटे के भीतर प्रोटोकॉल पूरा न करने पर आपकी पूरी १००-दिन की प्रगति शून्य पर वापस रीसेट हो जाएगी।"
+                },
+                {
+                  q: "What is the Sovereign Lab (MindLab)? / संप्रभु प्रयोगशाला (MindLab) क्या है?",
+                  a: "Sovereign Lab is an advanced mental simulator. You can participate in offline cognitive tests and focused psychological exercises (such as Silence Siege, Sensory Isolation, Focus Siege). Completing these real-world challenges allows you to claim massive XP rewards to rapidly level up your ranking tier.",
+                  hin: "माइंड लैब एक मानसिक अनुकारक प्रयोगशाला है जहाँ आप व्यावहारिक जीवन के कड़े मानसिक अभ्यासों को शुरू कर सकते हैं। इन्हें पूरा करने पर आप अतिरिक्त अनुभव अंक (XP) प्राप्त कर अपनी रैंक तेज़ी से बढ़ा सकते हैं।"
+                },
+                {
+                  q: "Is my progress saved securely online? / क्या मेरी प्रगति सुरक्षित रूप से सेव होगी?",
+                  a: "Yes, all daily progress, streak counts, unlocked levels, and reflection entries are securely synchronized to our Cloud Firestore database in real-time. Clearing your browser cache or logging in on a different phone or laptop will never lose your progress.",
+                  hin: "हाँ, आपकी दैनिक प्रगति, स्ट्रीक काउंट, स्तर और चिंतन डेटाबेस में लाइव सिंक होते हैं। ब्राउज़र कैश साफ़ करने या डिवाइस बदलने से भी आपका प्रोग्रेस कभी नष्ट नहीं होगा।"
+                },
+                {
+                  q: "How do I access books in the Great Library? / द ग्रेट लाइब्रेरी की किताबें कैसे पढ़ें?",
+                  a: "Simply head over to the Great Library tab on your sidebar dashboard. Standard members can read brief descriptions and excerpts, while authorized Premium members can download full textbooks, elite manual files, and cheatsheets directly.",
+                  hin: "साइडबार डैशबोर्ड पर द ग्रेट लाइब्रेरी टैब पर जाएं। यहाँ सामान्य सदस्य सारांश पढ़ सकते हैं, जबकि प्रीमियम सदस्यों को पूर्ण किताबों की पीडीएफ फाइलों और दस्तावेज डाउनलोड करने की अनुमति है।"
+                },
+                {
+                  q: "Is my identity completely private in the community? / क्या कम्युनिटी में मेरी पहचान गुप्त रहेगी?",
+                  a: "Absolutely. We deeply respect your anonymity. You can customize your avatar and choose a custom pseudonym under your Profile tab to hide your real identity from public rankings, community chat, and global leaderboard views.",
+                  hin: "बिल्कुल। आपकी सुरक्षा और गोपनीयता हमारे लिए सर्वोपरि है। आप प्रोफाइल टैब के तहत अपना एक नया उपनाम (pseudonym) और बायो चुन सकते हैं ताकि मुख्य कम्युनिटी बोर्ड और लीडरबोर्ड पर आपकी वास्तविक पहचान छिपी रहे।"
+                }
+              ].map((faq, idx) => {
+                const isOpen = activeFaq === idx;
+                return (
+                  <div 
+                    key={idx} 
+                    className="border border-zinc-800 bg-[#0c0e14]/50 rounded-2xl overflow-hidden transition-all duration-300"
+                  >
+                    <button
+                      onClick={() => setActiveFaq(isOpen ? null : idx)}
+                      className="w-full px-5 py-4 flex items-center justify-between gap-4 text-left hover:bg-white/[0.02] transition-colors"
+                    >
+                      <span className="text-xs sm:text-sm font-bold text-white uppercase tracking-tight">
+                        {faq.q}
+                      </span>
+                      <ChevronDown 
+                        className={`w-4 h-4 text-zinc-500 transition-transform duration-300 shrink-0 ${isOpen ? 'rotate-180 text-amber-400' : ''}`} 
+                      />
+                    </button>
+                    {isOpen && (
+                      <div className="px-5 pb-5 pt-1 border-t border-zinc-900 bg-black/40 space-y-2 text-xs sm:text-sm leading-relaxed text-zinc-300">
+                        <p className="font-medium text-zinc-100">{faq.a}</p>
+                        {faq.hin && (
+                          <p className="text-zinc-400 font-mono italic border-t border-zinc-900/50 pt-2 text-[11px] sm:text-xs">
+                            {faq.hin}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* Action Call at bottom of Gateway */}

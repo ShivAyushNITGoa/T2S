@@ -7,6 +7,7 @@ export interface JourneyModule {
   logic?: string;
   phase?: string;
   isPremium?: boolean;
+  category?: string;
 }
 
 export interface VideoArchive {
@@ -91,4 +92,4 @@ export interface AffiliateStats {
   referralCode: string;
 }
 
-export type TabType = 'journey' | 'archives' | 'library' | 'community' | 'admin' | 'profile' | 'shop' | 'affiliate' | 'leaderboard';
+export type TabType = 'journey' | 'archives' | 'library' | 'community' | 'admin' | 'profile' | 'shop' | 'affiliate' | 'leaderboard' | 'mindlab';

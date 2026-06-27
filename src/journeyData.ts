@@ -1,6 +1,31 @@
 import { JourneyModule } from './types';
 
-export const RAW_JOURNEY_MODULES: Omit<JourneyModule, 'id'>[] = [
+export function getCategoryForDay(day: number): string {
+  // Body Language
+  const bodyLanguageDays = [5, 9, 16, 17, 25, 28, 33, 34, 56, 61, 71, 84, 92];
+  if (bodyLanguageDays.includes(day)) return 'Body Language';
+
+  // Manipulation
+  const manipulationDays = [6, 62, 63, 64, 66, 67, 68, 69, 70, 72, 73, 74, 75, 76, 77, 78, 79, 80];
+  if (manipulationDays.includes(day)) return 'Manipulation';
+
+  // Discipline
+  const disciplineDays = [1, 3, 8, 11, 12, 15, 18, 21, 22, 26, 27, 29, 30, 31, 36, 42, 50, 55];
+  if (disciplineDays.includes(day)) return 'Discipline';
+
+  // Mystery & Presence
+  const mysteryDays = [2, 13, 19, 37, 43, 48, 51, 54, 57];
+  if (mysteryDays.includes(day)) return 'Mystery & Presence';
+
+  // Strategic Thinking
+  const strategicThinkingDays = [4, 7, 10, 35, 38, 44, 46, 47, 52, 60, 81, 82, 83, 85, 86, 87, 88, 89, 90, 93, 94, 95, 96, 97, 98, 99];
+  if (strategicThinkingDays.includes(day) || (day >= 81 && day <= 100 && day !== 100 && day !== 92)) return 'Strategic Thinking';
+
+  // Default is Mindset
+  return 'Mindset';
+}
+
+const RAW_JOURNEY_MODULES_BASE: Omit<JourneyModule, 'id'>[] = [
   // PHASE 1: THE PURGE (Days 1 - 20) — 'Validation का विसर्जन'
   {
     day: 1,
@@ -911,3 +936,8 @@ export const RAW_JOURNEY_MODULES: Omit<JourneyModule, 'id'>[] = [
     isPremium: true
   }
 ];
+
+export const RAW_JOURNEY_MODULES: Omit<JourneyModule, 'id'>[] = RAW_JOURNEY_MODULES_BASE.map(m => ({
+  ...m,
+  category: getCategoryForDay(m.day)
+}));

@@ -32,7 +32,7 @@ export default function AdminPanel() {
         <SubTabBtn active={activeSubTab === 'users'} onClick={() => setActiveSubTab('users')} icon={<Plus className="w-4 h-4" />} label="Users" />
       </div>
 
-      <div className="bg-neutral-900/20 rounded-3xl p-6 border border-white/5">
+      <div className="bg-[#0c0e14] rounded-3xl p-6 border border-[#1d222e]">
         {activeSubTab === 'journey' && <JourneyManager />}
         {activeSubTab === 'archives' && <ArchiveManager />}
         {activeSubTab === 'library' && <LibraryManager />}
@@ -148,13 +148,13 @@ function JourneyManager() {
 
       <div className="grid grid-cols-1 gap-4">
         {modules.map(m => (
-          <div key={m.id} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
-            <div className="flex items-center gap-4">
-              <span className="text-white/40 font-mono mr-4 italic">DAY {m.day}</span>
-              <span className="font-bold uppercase tracking-tight text-white/80">{m.title}</span>
-              {m.isPremium && <Zap className="w-3 h-3 text-white fill-white" />}
+          <div key={m.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 gap-3">
+            <div className="flex items-center gap-3 md:gap-4 flex-wrap sm:flex-nowrap">
+              <span className="text-white/40 font-mono italic shrink-0">DAY {m.day}</span>
+              <span className="font-bold uppercase tracking-tight text-white/80 text-sm md:text-base">{m.title}</span>
+              {m.isPremium && <Zap className="w-3 h-3 text-white fill-white shrink-0" />}
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 self-end sm:self-auto">
               <button 
                 onClick={async () => {
                   try {
@@ -188,28 +188,39 @@ function JourneyManager() {
 
       <AnimatePresence>
         {editing && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm overflow-y-auto py-8">
             <motion.form 
-              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-              onSubmit={save} className="bg-neutral-900 p-8 rounded-3xl border border-white/10 w-full max-w-lg space-y-4"
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              onSubmit={save} className="bg-[#11131a] p-5 sm:p-8 rounded-3xl border border-[#1e222d] w-full max-w-lg space-y-4 my-auto relative shadow-2xl"
             >
               <div className="flex justify-between items-center mb-4">
                 <button type="button" onClick={() => setEditing(null)} className="flex items-center gap-2 text-gray-500 hover:text-white transition-colors group">
                   <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Back</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest font-mono">Back</span>
                 </button>
                 <h4 className="text-lg font-black uppercase tracking-widest italic">Edit Module</h4>
               </div>
-              <input name="day" defaultValue={editing.day} placeholder="Day Number" className="w-full bg-white/5 p-3 rounded-xl" type="number" required />
-              <input name="title" defaultValue={editing.title} placeholder="Title" className="w-full bg-white/5 p-3 rounded-xl" required />
-              <textarea name="description" defaultValue={editing.description} placeholder="Description" className="w-full bg-white/5 p-3 rounded-xl h-32" required />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="sm:col-span-1">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5 px-1 font-mono">Day</label>
+                  <input name="day" defaultValue={editing.day} placeholder="Day" className="w-full bg-white/5 p-3 rounded-xl text-sm font-mono text-white placeholder-gray-500 border border-white/5 focus:border-amber-500/30 focus:bg-white/10 focus:outline-none transition-all" type="number" required />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5 px-1 font-mono">Title</label>
+                  <input name="title" defaultValue={editing.title} placeholder="Enter day title" className="w-full bg-white/5 p-3 rounded-xl text-sm text-white placeholder-gray-500 border border-white/5 focus:border-amber-500/30 focus:bg-white/10 focus:outline-none transition-all" required />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5 px-1 font-mono">Description</label>
+                <textarea name="description" defaultValue={editing.description} placeholder="Enter module details..." className="w-full bg-white/5 p-3 rounded-xl text-sm text-white placeholder-gray-500 border border-white/5 focus:border-amber-500/30 focus:bg-white/10 focus:outline-none transition-all h-32" required />
+              </div>
               <label className="flex items-center gap-3 p-3 bg-white/5 rounded-xl cursor-pointer">
                 <input type="checkbox" name="isPremium" defaultChecked={editing.isPremium} className="w-4 h-4 accent-white" />
-                <span className="text-xs font-bold uppercase tracking-widest text-white/60 flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-widest text-white/60 flex items-center gap-2 font-mono">
                    Strategist Tier Only <Zap className="w-3 h-3 fill-white/60" />
                 </span>
               </label>
-              <button className="w-full py-4 bg-white text-black font-black uppercase tracking-widest rounded-xl hover:bg-gray-200">Save Content</button>
+              <button className="w-full py-4 bg-white text-black font-black uppercase tracking-widest rounded-xl hover:bg-gray-200 cursor-pointer text-xs font-mono">Save Content</button>
             </motion.form>
           </div>
         )}
@@ -339,15 +350,15 @@ function ArchiveManager() {
 
       <div className="grid grid-cols-1 gap-4">
         {items.map(m => (
-          <div key={m.id} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+          <div key={m.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 gap-3">
             <div className="flex items-center gap-4">
-              <img src={m.thumbnail} className="w-12 h-12 object-cover rounded-lg grayscale" />
-              <div className="flex items-center gap-2">
-                <span className="font-bold uppercase tracking-tight text-white/80">{m.title}</span>
-                {m.isPremium && <Zap className="w-3 h-3 text-white fill-white" />}
+              <img src={m.thumbnail} className="w-12 h-12 object-cover rounded-lg grayscale shrink-0" />
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold uppercase tracking-tight text-white/80 text-sm md:text-base">{m.title}</span>
+                {m.isPremium && <Zap className="w-3 h-3 text-white fill-white shrink-0" />}
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 self-end sm:self-auto">
               <button 
                 onClick={async () => {
                   try {
@@ -381,23 +392,34 @@ function ArchiveManager() {
 
       <AnimatePresence>
         {editing && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm overflow-y-auto py-8">
             <motion.form 
-              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-              onSubmit={save} className="bg-neutral-900 p-8 rounded-3xl border border-white/10 w-full max-w-lg space-y-4"
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              onSubmit={save} className="bg-[#11131a] p-5 sm:p-8 rounded-3xl border border-[#1e222d] w-full max-w-lg space-y-4 my-auto relative shadow-2xl"
             >
               <div className="flex justify-between items-center mb-4">
                 <button type="button" onClick={() => setEditing(null)} className="flex items-center gap-2 text-gray-500 hover:text-white transition-colors group">
                   <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Back</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest font-mono">Back</span>
                 </button>
                 <h4 className="text-lg font-black uppercase tracking-widest italic">Edit Archive</h4>
               </div>
-              <input name="title" defaultValue={editing.title} placeholder="Title" className="w-full bg-white/5 p-3 rounded-xl" required />
-              <input name="duration" defaultValue={editing.duration} placeholder="Duration (e.g. 15:00)" className="w-full bg-white/5 p-3 rounded-xl" required />
-              <input name="views" defaultValue={editing.views} placeholder="Views" className="w-full bg-white/5 p-3 rounded-xl" required />
+              <div>
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5 px-1 font-mono">Video Title</label>
+                <input name="title" defaultValue={editing.title} placeholder="Enter title" className="w-full bg-white/5 p-3 rounded-xl text-sm text-white placeholder-gray-500 border border-white/5 focus:border-amber-500/30 focus:bg-white/10 focus:outline-none transition-all" required />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5 px-1 font-mono">Duration</label>
+                  <input name="duration" defaultValue={editing.duration} placeholder="e.g. 15:00" className="w-full bg-white/5 p-3 rounded-xl text-sm text-white placeholder-gray-500 border border-white/5 focus:border-amber-500/30 focus:bg-white/10 focus:outline-none transition-all font-mono" required />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5 px-1 font-mono">Views</label>
+                  <input name="views" defaultValue={editing.views} placeholder="e.g. 1.2k" className="w-full bg-white/5 p-3 rounded-xl text-sm text-white placeholder-gray-500 border border-white/5 focus:border-amber-500/30 focus:bg-white/10 focus:outline-none transition-all font-mono" required />
+                </div>
+              </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Thumbnail Image (थंबनेल फोटो) *</label>
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1 block font-mono">Thumbnail Image (थंबनेल फोटो) *</label>
                 <div 
                   onClick={() => document.getElementById('archive-file-upload')?.click()}
                   className="border border-dashed border-white/15 rounded-2xl p-4 bg-white/5 hover:bg-white/10 hover:border-amber-500/30 transition-all text-center cursor-pointer relative group flex flex-col items-center justify-center min-h-[140px]"
@@ -413,7 +435,7 @@ function ArchiveManager() {
                     <div className="space-y-1">
                       <Upload className="w-6 h-6 text-white/45 mx-auto mb-1 animate-pulse" />
                       <p className="text-xs font-bold text-white/70">Upload Thumbnail</p>
-                      <p className="text-[8px] text-white/30 uppercase font-black tracking-widest">JPG, PNG, WEBP from device</p>
+                      <p className="text-[8px] text-white/30 uppercase font-black tracking-widest font-mono">JPG, PNG, WEBP from device</p>
                     </div>
                   )}
                   <input 
@@ -436,14 +458,17 @@ function ArchiveManager() {
                   />
                 </div>
               </div>
-              <input name="videoUrl" defaultValue={editing.videoUrl} placeholder="YouTube URL or Embed ID" className="w-full bg-white/5 p-3 rounded-xl" required />
+              <div>
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5 px-1 font-mono">Video URL / Embed ID</label>
+                <input name="videoUrl" defaultValue={editing.videoUrl} placeholder="YouTube URL or Embed ID" className="w-full bg-white/5 p-3 rounded-xl text-sm text-white placeholder-gray-500 border border-white/5 focus:border-amber-500/30 focus:bg-white/10 focus:outline-none transition-all font-mono" required />
+              </div>
               <label className="flex items-center gap-3 p-3 bg-white/5 rounded-xl cursor-pointer">
                 <input type="checkbox" name="isPremium" defaultChecked={editing.isPremium} className="w-4 h-4 accent-white" />
-                <span className="text-xs font-bold uppercase tracking-widest text-white/60 flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-widest text-white/60 flex items-center gap-2 font-mono">
                    Strategist Tier Only <Zap className="w-3 h-3 fill-white/60" />
                 </span>
               </label>
-              <button className="w-full py-4 bg-white text-black font-black uppercase tracking-widest rounded-xl hover:bg-gray-200">Save Video</button>
+              <button className="w-full py-4 bg-white text-black font-black uppercase tracking-widest rounded-xl hover:bg-gray-200 cursor-pointer text-xs font-mono">Save Video</button>
             </motion.form>
           </div>
         )}
@@ -595,21 +620,21 @@ function LibraryManager() {
 
       <div className="grid grid-cols-1 gap-4">
         {items.map(m => (
-          <div key={m.id} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 font-mono">
-            <div className="flex items-center gap-3">
+          <div key={m.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 gap-3 font-mono">
+            <div className="flex items-center gap-3 flex-wrap">
               {m.coverUrl ? (
-                <img src={m.coverUrl} className="w-8 h-10 object-cover rounded border border-white/10 grayscale" />
+                <img src={m.coverUrl} className="w-8 h-10 object-cover rounded border border-white/10 grayscale shrink-0" />
               ) : (
-                <div className="w-8 h-10 bg-white/5 rounded border border-white/10 flex items-center justify-center">
+                <div className="w-8 h-10 bg-white/5 rounded border border-white/10 flex items-center justify-center shrink-0">
                   <Book size={12} className="text-white/20" />
                 </div>
               )}
-              {!m.fileUrl && <div className="w-2 h-2 bg-white rounded-full animate-pulse" title="Missing URL" />}
-              <span className="text-white/40 text-[10px] uppercase tracking-widest mr-4">{m.category}</span>
-              <span className="font-bold text-white/80">{m.title}</span>
-              {m.isPremium && <Zap className="w-3 h-3 text-white fill-white" />}
+              {!m.fileUrl && <div className="w-2 h-2 bg-white rounded-full animate-pulse shrink-0" title="Missing URL" />}
+              <span className="text-white/40 text-[10px] uppercase tracking-widest block sm:inline">{m.category}</span>
+              <span className="font-bold text-white/80 text-sm md:text-base">{m.title}</span>
+              {m.isPremium && <Zap className="w-3 h-3 text-white fill-white shrink-0" />}
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 self-end sm:self-auto">
               <button 
                 onClick={async () => {
                   try {
@@ -643,23 +668,34 @@ function LibraryManager() {
 
       <AnimatePresence>
         {editing && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm overflow-y-auto py-8">
             <motion.form 
-              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-              onSubmit={save} className="bg-neutral-900 p-8 rounded-3xl border border-white/10 w-full max-w-lg space-y-4"
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              onSubmit={save} className="bg-[#11131a] p-5 sm:p-8 rounded-3xl border border-[#1e222d] w-full max-w-lg space-y-4 my-auto relative shadow-2xl"
             >
               <div className="flex justify-between items-center mb-4">
                 <button type="button" onClick={() => setEditing(null)} className="flex items-center gap-2 text-gray-500 hover:text-white transition-colors group">
                   <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Back</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest font-mono">Back</span>
                 </button>
                 <h4 className="text-lg font-black uppercase tracking-widest italic">Edit Library</h4>
               </div>
-              <input name="title" defaultValue={editing.title} placeholder="Title" className="w-full bg-white/5 p-3 rounded-xl" required />
-              <input name="author" defaultValue={editing.author} placeholder="Author" className="w-full bg-white/5 p-3 rounded-xl" required />
-              <input name="category" defaultValue={editing.category} placeholder="Category" className="w-full bg-white/5 p-3 rounded-xl" required />
+              <div>
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5 px-1 font-mono">Book Title</label>
+                <input name="title" defaultValue={editing.title} placeholder="Title" className="w-full bg-white/5 p-3 rounded-xl text-sm text-white placeholder-gray-500 border border-white/5 focus:border-amber-500/30 focus:bg-white/10 focus:outline-none transition-all" required />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5 px-1 font-mono">Author</label>
+                  <input name="author" defaultValue={editing.author} placeholder="Author" className="w-full bg-white/5 p-3 rounded-xl text-sm text-white placeholder-gray-500 border border-white/5 focus:border-amber-500/30 focus:bg-white/10 focus:outline-none transition-all" required />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5 px-1 font-mono">Category</label>
+                  <input name="category" defaultValue={editing.category} placeholder="Category" className="w-full bg-white/5 p-3 rounded-xl text-sm text-white placeholder-gray-500 border border-white/5 focus:border-amber-500/30 focus:bg-white/10 focus:outline-none transition-all" required />
+                </div>
+              </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Book Cover Image (कवर फोटो) *</label>
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1 block font-mono">Book Cover Image (कवर फोटो) *</label>
                 <div 
                   onClick={() => document.getElementById('book-cover-upload')?.click()}
                   className="border border-dashed border-white/15 rounded-2xl p-4 bg-white/5 hover:bg-white/10 hover:border-amber-500/30 transition-all text-center cursor-pointer relative group flex flex-col items-center justify-center min-h-[140px]"
@@ -675,7 +711,7 @@ function LibraryManager() {
                     <div className="space-y-1">
                       <Upload className="w-6 h-6 text-white/45 mx-auto mb-1 animate-pulse" />
                       <p className="text-xs font-bold text-white/70">Upload Book Cover</p>
-                      <p className="text-[8px] text-white/30 uppercase font-black tracking-widest">JPG, PNG, WEBP from device</p>
+                      <p className="text-[8px] text-white/30 uppercase font-black tracking-widest font-mono">JPG, PNG, WEBP from device</p>
                     </div>
                   )}
                   <input 
@@ -698,7 +734,10 @@ function LibraryManager() {
                   />
                 </div>
               </div>
-              <input name="fileUrl" defaultValue={editing.fileUrl} placeholder="Google Drive Sharing URL" className="w-full bg-white/5 p-3 rounded-xl" required />
+              <div>
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5 px-1 font-mono">Google Drive Sharing URL</label>
+                <input name="fileUrl" defaultValue={editing.fileUrl} placeholder="Google Drive Sharing URL" className="w-full bg-white/5 p-3 rounded-xl text-sm text-white placeholder-gray-500 border border-white/5 focus:border-amber-500/30 focus:bg-white/10 focus:outline-none transition-all font-mono" required />
+              </div>
               <div className="text-[10px] text-white/40 bg-white/5 p-4 rounded-xl border border-white/10 mb-4 space-y-2 font-mono">
                 <p className="font-bold text-white/60">REQUIRED SETUP FOR GOOGLE DRIVE:</p>
                 <ol className="list-decimal ml-4 space-y-1">
@@ -707,14 +746,17 @@ function LibraryManager() {
                   <li>Click "Copy link" and paste it in the field above.</li>
                 </ol>
               </div>
-              <textarea name="excerpt" defaultValue={editing.excerpt} placeholder="Excerpt" className="w-full bg-white/5 p-3 rounded-xl h-32" required />
+              <div>
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5 px-1 font-mono">Excerpt Summary / Description</label>
+                <textarea name="excerpt" defaultValue={editing.excerpt} placeholder="Excerpt" className="w-full bg-white/5 p-3 rounded-xl text-sm text-white placeholder-gray-500 border border-white/5 focus:border-amber-500/30 focus:bg-white/10 focus:outline-none transition-all h-24" required />
+              </div>
               <label className="flex items-center gap-3 p-3 bg-white/5 rounded-xl cursor-pointer">
                 <input type="checkbox" name="isPremium" defaultChecked={editing.isPremium} className="w-4 h-4 accent-white" />
-                <span className="text-xs font-bold uppercase tracking-widest text-white/60 flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-widest text-white/60 flex items-center gap-2 font-mono">
                    Strategist Tier Only <Zap className="w-3 h-3 fill-white/60" />
                 </span>
               </label>
-              <button className="w-full py-4 bg-white text-black font-black uppercase tracking-widest rounded-xl hover:bg-gray-200">Save Book</button>
+              <button className="w-full py-4 bg-white text-black font-black uppercase tracking-widest rounded-xl hover:bg-gray-200 cursor-pointer text-xs font-mono">Save Book</button>
             </motion.form>
           </div>
         )}
@@ -1044,15 +1086,15 @@ function ShopManager() {
 
       <div className="grid grid-cols-1 gap-4">
         {products.map(p => (
-          <div key={p.id} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+          <div key={p.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 gap-3">
             <div className="flex items-center gap-4">
-              <img src={p.imageUrl} className="w-12 h-12 object-cover rounded-lg grayscale" />
+              <img src={p.imageUrl} className="w-12 h-12 object-cover rounded-lg grayscale shrink-0" />
               <div>
-                <span className="font-bold uppercase tracking-tight text-white/80 block">{p.name}</span>
+                <span className="font-bold uppercase tracking-tight text-white/80 block text-sm md:text-base">{p.name}</span>
                 <span className="text-[10px] text-gray-500 font-mono italic uppercase">{p.category} — {p.price}</span>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 self-end sm:self-auto">
               <button onClick={() => setEditing(p)} className="p-2 hover:bg-white/10 rounded-lg text-blue-400"><Edit2 size={16}/></button>
               <button 
                 onClick={async () => {
@@ -1073,25 +1115,45 @@ function ShopManager() {
 
       <AnimatePresence>
         {editing && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm overflow-y-auto py-8">
             <motion.form 
-              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-              onSubmit={save} className="bg-neutral-900 p-8 rounded-3xl border border-white/10 w-full max-w-lg space-y-4"
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              onSubmit={save} className="bg-[#11131a] p-5 sm:p-8 rounded-3xl border border-[#1e222d] w-full max-w-lg space-y-4 my-auto relative shadow-2xl"
             >
               <div className="flex justify-between items-center mb-4">
-                <button type="button" onClick={() => setEditing(null)} className="flex items-center gap-2 text-gray-500 hover:text-white transition-colors">
-                  <ArrowLeft size={16} />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-white/40 group-hover:text-white">Back</span>
+                <button type="button" onClick={() => setEditing(null)} className="flex items-center gap-2 text-gray-500 hover:text-white transition-colors group">
+                  <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+                  <span className="text-[10px] font-black uppercase tracking-widest font-mono">Back</span>
                 </button>
                 <h4 className="text-lg font-black uppercase tracking-widest italic">Edit Product</h4>
               </div>
-              <input name="name" defaultValue={editing.name} placeholder="Product Name" className="w-full bg-white/5 p-3 rounded-xl" required />
-              <input name="category" defaultValue={editing.category} placeholder="Category" className="w-full bg-white/5 p-3 rounded-xl" required />
-              <input name="price" defaultValue={editing.price} placeholder="Price (e.g. $19.99)" className="w-full bg-white/5 p-3 rounded-xl" required />
-              <input name="imageUrl" defaultValue={editing.imageUrl} placeholder="Image URL" className="w-full bg-white/5 p-3 rounded-xl" required />
-              <input name="affiliateUrl" defaultValue={editing.affiliateUrl} placeholder="Affiliate/Purchase URL" className="w-full bg-white/5 p-3 rounded-xl" required />
-              <textarea name="description" defaultValue={editing.description} placeholder="Description" className="w-full bg-white/5 p-3 rounded-xl h-24" required />
-              <button className="w-full py-4 bg-white text-black font-black uppercase tracking-widest rounded-xl hover:bg-gray-200">Save Product</button>
+              <div>
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5 px-1 font-mono">Product Name</label>
+                <input name="name" defaultValue={editing.name} placeholder="Product Name" className="w-full bg-white/5 p-3 rounded-xl text-sm text-white placeholder-gray-500 border border-white/5 focus:border-amber-500/30 focus:bg-white/10 focus:outline-none transition-all" required />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5 px-1 font-mono">Category</label>
+                  <input name="category" defaultValue={editing.category} placeholder="Category" className="w-full bg-white/5 p-3 rounded-xl text-sm text-white placeholder-gray-500 border border-white/5 focus:border-amber-500/30 focus:bg-white/10 focus:outline-none transition-all" required />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5 px-1 font-mono">Price</label>
+                  <input name="price" defaultValue={editing.price} placeholder="Price (e.g. $19.99)" className="w-full bg-white/5 p-3 rounded-xl text-sm text-white placeholder-gray-500 border border-white/5 focus:border-amber-500/30 focus:bg-white/10 focus:outline-none transition-all font-mono" required />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5 px-1 font-mono">Image URL</label>
+                <input name="imageUrl" defaultValue={editing.imageUrl} placeholder="Image URL" className="w-full bg-white/5 p-3 rounded-xl text-sm text-white placeholder-gray-500 border border-white/5 focus:border-amber-500/30 focus:bg-white/10 focus:outline-none transition-all font-mono" required />
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5 px-1 font-mono">Affiliate / Purchase URL</label>
+                <input name="affiliateUrl" defaultValue={editing.affiliateUrl} placeholder="Affiliate/Purchase URL" className="w-full bg-white/5 p-3 rounded-xl text-sm text-white placeholder-gray-500 border border-white/5 focus:border-amber-500/30 focus:bg-white/10 focus:outline-none transition-all font-mono" required />
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5 px-1 font-mono">Description</label>
+                <textarea name="description" defaultValue={editing.description} placeholder="Description" className="w-full bg-white/5 p-3 rounded-xl text-sm text-white placeholder-gray-500 border border-white/5 focus:border-amber-500/30 focus:bg-white/10 focus:outline-none transition-all h-24" required />
+              </div>
+              <button className="w-full py-4 bg-white text-black font-black uppercase tracking-widest rounded-xl hover:bg-gray-200 cursor-pointer text-xs font-mono">Save Product</button>
             </motion.form>
           </div>
         )}
