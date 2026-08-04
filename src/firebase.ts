@@ -1,20 +1,30 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { doc, getFirestore, getDocFromServer, initializeFirestore, terminate } from 'firebase/firestore';
-import firebaseConfig from '../firebase-applet-config.json';
+import { doc, getFirestore, getDocFromServer, initializeFirestore } from 'firebase/firestore';
+import firebaseConfigJson from '../firebase-applet-config.json';
 
-const app = initializeApp(firebaseConfig);
+const activeFirebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseConfigJson.apiKey,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || firebaseConfigJson.authDomain,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || firebaseConfigJson.projectId,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || firebaseConfigJson.storageBucket,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || firebaseConfigJson.messagingSenderId,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || firebaseConfigJson.appId,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || firebaseConfigJson.measurementId || "",
+  firestoreDatabaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || (firebaseConfigJson as any).firestoreDatabaseId || "(default)"
+};
+
+const app = initializeApp(activeFirebaseConfig);
 
 // Initialize Firestore with settings to improve stability in sandboxed environments
-// We use a try-catch to handle cases where it might already be initialized or fails in specific environments
 let dbInstance;
 try {
   dbInstance = initializeFirestore(app, {
     experimentalForceLongPolling: true,
-  }, (firebaseConfig as any).firestoreDatabaseId);
+  }, activeFirebaseConfig.firestoreDatabaseId);
 } catch (e) {
   console.warn("initializeFirestore failed, falling back to getFirestore:", e);
-  dbInstance = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId);
+  dbInstance = getFirestore(app, activeFirebaseConfig.firestoreDatabaseId);
 }
 
 export const db = dbInstance;
