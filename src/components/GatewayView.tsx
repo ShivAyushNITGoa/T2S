@@ -466,7 +466,7 @@ export default function GatewayView({
                     <span className="text-xl font-black font-sans text-blue-400">Tribe Hub</span>
                   </div>
                   <p className="text-zinc-250 font-semibold text-xs leading-relaxed">
-                    <strong className="text-zinc-100 font-bold">Community:</strong> दैनिक रणनीतिक अपडेट, महत्वपूर्ण पीडीएफ टूल्स, डार्क साइकोलॉजी रिसोर्सेज और संप्रभु सदस्यों के बीच चर्चा।
+                    <strong className="text-zinc-100 font-bold">Telegram Hub:</strong> दैनिक रणनीतिक अपडेट, महत्वपूर्ण पीडीएफ टूल्स, डार्क साइकोलॉजी रिसोर्सेज और संप्रभु सदस्यों के बीच चर्चा।
                   </p>
                   <div className="p-4 bg-zinc-950 border border-zinc-800 rounded-2xl space-y-1">
                     <span className="text-[10px] text-zinc-400 font-black uppercase tracking-widest block">CHANNELS & GROUPS</span>
@@ -709,7 +709,7 @@ export default function GatewayView({
                 Frequently Asked Questions
               </h2>
               <p className="text-zinc-400 text-xs md:text-sm max-w-xl mx-auto">
-                Discover how the 100-Day Journey works, how to accumulate XP points, and how the sovereign community interacts.
+                Discover how the 100-Day Journey works, how to accumulate XP points, and how the sovereign network operates.
               </p>
             </div>
 
@@ -727,7 +727,7 @@ export default function GatewayView({
                 },
                 {
                   q: "What benefits does Special/Premium Access provide? / प्रीमियम/विशेष सदस्यता के क्या लाभ हैं?",
-                  a: "Standard accounts have full access to the daily 100-Day Journey calendar. Special/Premium Access (Sovereign Strategist) unlocks unlimited privileges across the portal, including the Great Library (PDF/EPUB manual files, cheat sheets), complete Video Archives breakdowns, custom premium community capabilities, and direct access to personal consultation queues.",
+                  a: "Standard accounts have full access to the daily 100-Day Journey calendar. Special/Premium Access (Sovereign Strategist) unlocks unlimited privileges across the portal, including the Great Library (PDF/EPUB manual files, cheat sheets), complete Video Archives breakdowns, custom premium tools, and direct access to personal consultation queues.",
                   hin: "प्रीमियम सदस्यता (Sovereign Full Pass) आपको महान पुस्तकालय (The Great Library), विशेष विश्लेषण वीडियो, और बंद ग्रुप के पीडीएफ टूल्स की पूरी पहुंच प्रदान करती है।"
                 },
                 {
@@ -756,9 +756,39 @@ export default function GatewayView({
                   hin: "साइडबार डैशबोर्ड पर द ग्रेट लाइब्रेरी टैब पर जाएं। यहाँ सामान्य सदस्य सारांश पढ़ सकते हैं, जबकि प्रीमियम सदस्यों को पूर्ण किताबों की पीडीएफ फाइलों और दस्तावेज डाउनलोड करने की अनुमति है।"
                 },
                 {
-                  q: "Is my identity completely private in the community? / क्या कम्युनिटी में मेरी पहचान गुप्त रहेगी?",
-                  a: "Absolutely. We deeply respect your anonymity. You can customize your avatar and choose a custom pseudonym under your Profile tab to hide your real identity from public rankings, community chat, and global leaderboard views.",
-                  hin: "बिल्कुल। आपकी सुरक्षा और गोपनीयता हमारे लिए सर्वोपरि है। आप प्रोफाइल टैब के तहत अपना एक नया उपनाम (pseudonym) और बायो चुन सकते हैं ताकि मुख्य कम्युनिटी बोर्ड और लीडरबोर्ड पर आपकी वास्तविक पहचान छिपी रहे।"
+                  q: "Is my identity completely private in the network? / क्या नेटवर्क में मेरी पहचान गुप्त रहेगी?",
+                  a: "Absolutely. We deeply respect your anonymity. You can customize your avatar and choose a custom pseudonym under your Profile tab to hide your real identity from public rankings and global leaderboard views.",
+                  hin: "बिल्कुल। आपकी सुरक्षा और गोपनीयता हमारे लिए सर्वोपरि है। आप प्रोफाइल टैब के तहत अपना एक नया उपनाम (pseudonym) और बायो चुन सकते हैं ताकि मुख्य बोर्ड और लीडरबोर्ड पर आपकी वास्तविक पहचान छिपी रहे।"
+                },
+                {
+                  q: "When does the daily unlock timer reset? / दैनिक मॉड्यूल unlock समय चक्र कब रीसेट होता है?",
+                  a: "All daily modules and countdown timers reset strictly at 12:00 AM Midnight IST (Asia/Kolkata timezone, UTC+5:30). Check the live timer at the top of the Journey tab to see exact time remaining.",
+                  hin: "सभी दैनिक मॉड्यूल और टाइमर भारतीय समयानुसार (IST) रात १२:०० बजे रीसेट होते हैं। सटीक बचा समय आप जर्नी व्यू में ऊपर काउंटडाउन टाइमर से देख सकते हैं।"
+                },
+                {
+                  q: "Why is the 100-Day Journey strictly sequential? / १००-दिन की यात्रा क्रमिक (Sequential) क्यों है?",
+                  a: "You must complete Day N-1 to unlock Day N. Skipping ahead is intentionally blocked to build genuine discipline, emotional resilience, and deep psychological habit formation day by day.",
+                  hin: "दिन N खोलने के लिए पिछला दिन N-1 पूरा करना अनिवार्य है। बिना पढ़े या अभ्यास किए आगे जाने से रोकने और वास्तविक मानसिक अनुशासन बनाने के लिए यह नियम लागू किया गया है।"
+                },
+                {
+                  q: "What happens during the 10:00 PM Nightly Council? / रात १०:०० बजे के 'नाइटली काउंसिल' रिफ्लेक्शन में क्या नियम हैं?",
+                  a: "Every night at 10:00 PM IST, the Nightly Reflection window unlocks. Completing your reflection prompt ('What did you teach the world today?') awards you +25 XP and locks in your active streak.",
+                  hin: "प्रतिदिन रात १०:०० बजे नाइटली रिफ्लेक्शन विंडो खुलती है। इसमें अपना दैनिक अनुभव दर्ज करने पर +२५ XP मिलते हैं और आपकी दैनिक स्ट्रीक पक्की हो जाती है।"
+                },
+                {
+                  q: "How does the Offline System work if internet is disconnected? / यदि इंटरनेट बंद हो जाए तो ऑफ़लाइन मोड कैसे काम करता है?",
+                  a: "Talk2Society features an active offline cache engine. You can read unlocked modules and browse offline content seamlessly. When internet reconnects, all pending completions and XP gains auto-sync to the cloud.",
+                  hin: "ऐप में ऑफ़लाइन कैशिंग की सुविधा है। इंटरनेट बंद रहने पर भी आप खुले हुए मॉड्यूल पढ़ सकते हैं। इंटरनेट आते ही आपकी प्रगति अपने आप क्लाउड पर सिंक हो जाती है।"
+                },
+                {
+                  q: "How are Leaderboard rankings calculated and protected? / लीडरबोर्ड रैंकिंग कैसे तय होती है और एंटी-चीट प्रोटेक्शन क्या है?",
+                  a: "Ranks are strictly based on cumulative XP (+100 XP per day, +25 XP reflection, +50 XP MindLab). Server-side Firestore Rules validate all updates to prevent any score tampering or fake completions.",
+                  hin: "आपकी रैंक कुल XP और स्ट्रीक से तय होती है। सर्वर-साइड फ़ायरस्टोर रूल्स के जरिए एंटी-चीट जाँच की जाती है ताकि कोई भी फर्जी तरीके से अंक न बढ़ा सके।"
+                },
+                {
+                  q: "How can I contact Support or get direct assistance? / सपोर्ट सहायता या ए. के. चंद्रदीप्ति से सीधा संपर्क कैसे करें?",
+                  a: "You can click on the Ascension / Request Unlock button in your profile to send direct upgrade or help requests, or join our official Telegram group (@Talk2Society) for immediate community support.",
+                  hin: "आप प्रोफाइल या एसेंशन मोडल से सीधा मैसेज भेज सकते हैं, अथवा तुरंत सहायता और अपडेट के लिए हमारे आधिकारिक टेलीग्राम ग्रुप (@Talk2Society) से जुड़ सकते हैं।"
                 }
               ].map((faq, idx) => {
                 const isOpen = activeFaq === idx;

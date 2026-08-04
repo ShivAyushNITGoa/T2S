@@ -40,11 +40,14 @@ import {
   getDocs
 } from 'firebase/firestore';
 import { auth, db, handleFirestoreError, OperationType, isOfflineError } from './firebase';
-import { UserProfile, CommunityPost, TabType, JourneyModule, VideoArchive, LibraryBook, ShopProduct } from './types';
+import { UserProfile, TabType, JourneyModule, VideoArchive, LibraryBook, ShopProduct } from './types';
 import { RAW_JOURNEY_MODULES, getCategoryForDay } from './journeyData';
 import { RANKS, getRankFromXP, getNextRank } from './constants';
 import AdminPanel from './components/AdminPanel';
 import SovereignLab from './components/SovereignLab';
+import LeaderboardTab from './components/LeaderboardTab';
+import JourneyView from './components/JourneyView';
+import DayCountdownTimer from './components/DayCountdownTimer';
 
 // --- Components ---
 
@@ -339,188 +342,6 @@ const PresenceCalendar = ({ presenceDays, completedDaysCount }: { presenceDays: 
   );
 };
 
-const JourneyProgressCalendar = ({ completedDays }: { completedDays: number[] }) => {
-  const [isMinimized, setIsMinimized] = useState(true);
-  const totalDaysCount = completedDays.length;
-  const nextTargetDay = totalDaysCount + 1;
-
-  // Determine current phase of 10 days (e.g. 1-10, 11-20, etc.)
-  const currentPhaseIndex = Math.min(Math.floor(totalDaysCount / 10), 9); // max 9 (91-100)
-  const phaseStart = currentPhaseIndex * 10 + 1;
-  const phaseEnd = phaseStart + 9;
-
-  return (
-    <div className="bg-white/5 border border-white/5 rounded-[32px] p-6 md:p-8 w-full shadow-2xl transition-all duration-300">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-6">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Trophy className="w-4 h-4 text-purple-500 animate-pulse" />
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Sadhana Progress / साधना पूर्णता चक्र</span>
-          </div>
-          <h2 className="text-2xl font-display font-black text-white uppercase italic tracking-tight">
-            100-Day <span className="text-purple-505 font-mono text-purple-500">Milestones</span>
-          </h2>
-          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">
-            {isMinimized ? `Current Phase: Days ${phaseStart}-${phaseEnd}` : 'Entire 100-Day Path Matrix'}
-          </p>
-        </div>
-
-        <div>
-          <button 
-            type="button"
-            onClick={() => setIsMinimized(!isMinimized)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-white/80 hover:bg-white/10 transition-colors"
-          >
-            {isMinimized ? (
-              <>
-                <ChevronDown className="w-3.5 h-3.5 text-purple-500" />
-                <span>Show All 100 Days / सम्पूर्ण पथ</span>
-              </>
-            ) : (
-              <>
-                <ChevronUp className="w-3.5 h-3.5 text-purple-500" />
-                <span>Show Current Phase / संक्षिप्त दशा</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-
-      <AnimatePresence mode="wait">
-        {isMinimized ? (
-          <motion.div 
-            key="minimized-journey"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden"
-          >
-            {/* Phase View: 10 Days row */}
-            <div className="bg-purple-505/5 border border-purple-500/10 rounded-2xl p-4 md:p-6 bg-purple-500/5">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest">Active Decade: Days {phaseStart} to {phaseEnd}</span>
-                <span className="text-[10px] font-bold text-purple-500">{Math.min(completedDays.filter(d => d >= phaseStart && d <= phaseEnd).length, 10)} / 10 Complete</span>
-              </div>
-              <div className="grid grid-cols-5 md:grid-cols-10 gap-3">
-                {Array.from({ length: 10 }).map((_, idx) => {
-                  const dayNum = phaseStart + idx;
-                  const isCompleted = completedDays.includes(dayNum);
-                  const isCurrent = dayNum === nextTargetDay;
-                  const isLocked = dayNum > nextTargetDay;
-
-                  return (
-                    <div 
-                      key={dayNum} 
-                      onClick={() => {
-                        if (!isLocked) {
-                          const el = document.getElementById(`module-${dayNum}`);
-                          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }
-                      }}
-                      className={`relative flex flex-col items-center justify-center aspect-square rounded-xl border text-center cursor-pointer transition-all ${
-                        isCompleted 
-                          ? 'bg-purple-500/20 border-purple-500/40 shadow-[0_0_15px_rgba(147,51,234,0.1)]' 
-                          : isCurrent 
-                          ? 'bg-white/10 border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.2)] ring-1 ring-amber-500/50' 
-                          : 'bg-white/2 border-white/5 opacity-40 hover:opacity-100'
-                      }`}
-                      title={`Day ${dayNum}: ${isCompleted ? 'Completed' : isCurrent ? "Today's Target" : 'Locked'}`}
-                    >
-                      <span className={`text-xs font-black font-mono ${isCompleted ? 'text-purple-400' : isCurrent ? 'text-amber-500' : 'text-white/20'}`}>
-                        {dayNum}
-                      </span>
-                      {isCompleted && (
-                        <CheckCircle2 className="w-3 h-3 text-purple-400 absolute bottom-1" />
-                      )}
-                      {isCurrent && (
-                        <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
-                      )}
-                      {isLocked && (
-                        <Lock className="w-2.5 h-2.5 text-white/10 absolute bottom-1.5" />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </motion.div>
-        ) : (
-          <motion.div 
-            key="maximized-journey"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-          >
-            {/* 100-Day Matrix: 10 rows of 10 cols */}
-            <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5 md:gap-2.5">
-              {Array.from({ length: 100 }).map((_, idx) => {
-                const dayNum = idx + 1;
-                const isCompleted = completedDays.includes(dayNum);
-                const isCurrent = dayNum === nextTargetDay;
-                const isLocked = dayNum > nextTargetDay;
-
-                return (
-                  <motion.div
-                    key={dayNum}
-                    initial={{ scale: 0.8 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: Math.min(dayNum * 0.002, 0.1) }}
-                    onClick={() => {
-                      if (!isLocked) {
-                        const el = document.getElementById(`module-${dayNum}`);
-                        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                      }
-                    }}
-                    className={`relative aspect-square rounded-lg md:rounded-xl border flex items-center justify-center cursor-pointer transition-all ${
-                      isCompleted 
-                        ? 'bg-purple-500/20 border-purple-500/40 shadow-[0_0_10px_rgba(147,51,234,0.05)]' 
-                        : isCurrent 
-                        ? 'bg-white/10 border-amber-500 ring-2 ring-amber-500/30' 
-                        : 'bg-white/2 border-white/5 opacity-50 hover:opacity-100 hover:border-white/20'
-                    }`}
-                    title={`Day ${dayNum}: ${isCompleted ? 'Completed' : isCurrent ? "Today's Target" : 'Locked'}`}
-                  >
-                    <span className={`text-[10px] md:text-sm font-black font-mono leading-none ${isCompleted ? 'text-purple-400' : isCurrent ? 'text-amber-500' : 'text-white/25'}`}>
-                      {dayNum}
-                    </span>
-                    {isCompleted && (
-                      <span className="absolute bottom-0.5 md:bottom-1 w-1 h-1 rounded-full bg-purple-400" />
-                    )}
-                    {isCurrent && (
-                      <span className="absolute top-0.5 right-0.5 w-1 h-1 rounded-full bg-amber-500 animate-ping" />
-                    )}
-                    {isLocked && dayNum % 10 === 0 && (
-                      <div className="absolute top-0.5 right-0.5 text-[6px] opacity-10">🔒</div>
-                    )}
-                  </motion.div>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div className="mt-8 flex flex-wrap gap-6 items-center border-t border-white/5 pt-6">
-        <div className="flex items-center gap-3">
-          <div className="w-3.5 h-3.5 rounded bg-purple-500/30 border border-purple-500/40" />
-          <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Completed / पूर्ण</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="w-3.5 h-3.5 rounded border border-amber-500 bg-white/10 ring-1 ring-amber-500/40" />
-          <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Current / सक्रिय</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="w-3.5 h-3.5 rounded bg-white/2 border border-white/5 opacity-40" />
-          <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Locked / आगामी</span>
-        </div>
-        <div className="ml-auto bg-purple-500/10 border border-purple-500/20 px-4 py-1.5 rounded-full">
-          <span className="text-[9px] font-black text-purple-400 uppercase tracking-widest">Decade Phases Completed: {Math.floor(totalDaysCount / 10)}/10</span>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 // --- Main App ---
 
 export default function App() {
@@ -536,7 +357,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     const saved = localStorage.getItem('t2s_active_tab');
     if (saved) {
-      const validTabs: TabType[] = ['journey', 'archives', 'library', 'community', 'admin', 'profile', 'shop', 'affiliate', 'leaderboard', 'mindlab'];
+      const validTabs: TabType[] = ['journey', 'archives', 'library', 'admin', 'profile', 'shop', 'affiliate', 'leaderboard', 'mindlab'];
       if (validTabs.includes(saved as TabType)) {
         return saved as TabType;
       }
@@ -613,14 +434,15 @@ export default function App() {
   };
 
   const [isSidebarOpen, setSidebarOpen] = useState(false); // Default to closed on mobile
-  const [posts, setPosts] = useState<CommunityPost[]>([]);
   
   // Dynamic Content
   const [journeyModules, setJourneyModules] = useState<JourneyModule[]>([]);
   const [selectedJourneyCategory, setSelectedJourneyCategory] = useState<string>('All');
+  const [librarySearch, setLibrarySearch] = useState<string>('');
+  const [selectedLibraryCategory, setSelectedLibraryCategory] = useState<string>('All');
   const [archives, setArchives] = useState<VideoArchive[]>([]);
   const [library, setLibrary] = useState<LibraryBook[]>([]);
-  const [stats, setStats] = useState({ users: 0, posts: 0, totalXp: 0 });
+  const [stats, setStats] = useState({ users: 0, totalXp: 0 });
   const [rank, setRank] = useState<number | null>(null);
 
   const [selectedVideo, setSelectedVideo] = useState<VideoArchive | null>(null);
@@ -842,41 +664,6 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
 
-    const unsubPosts = onSnapshot(query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(50)), (snap) => {
-      const data = snap.docs.map(d => ({ id: d.id, ...d.data() } as CommunityPost));
-      setPosts(data);
-      localStorage.setItem('t2s_posts_cache', JSON.stringify(data));
-    }, (error) => {
-      if (!isOfflineError(error)) {
-        handleFirestoreError(error, OperationType.LIST, 'posts');
-      } else {
-        console.warn("Waiting for internet connection to sync community posts...");
-      }
-      const cached = localStorage.getItem('t2s_posts_cache');
-      if (cached) {
-        try {
-          setPosts(JSON.parse(cached));
-        } catch (e) {
-          console.error("Failed to parse cached posts:", e);
-        }
-      } else {
-        // Fallback default posts if cache is empty
-        setPosts([
-          {
-            id: 'fallback-1',
-            authorId: 'system',
-            authorName: 'Sovereign Guide',
-            content: 'Maintain absolute composure. The network may experience high load, but your training continues offline. Stay focused.',
-            createdAt: { toDate: () => new Date() },
-            likes: 12,
-            likedBy: [],
-            authorPhotoURL: '',
-            isPremium: false
-          }
-        ]);
-      }
-    });
-
     const unsubJourney = onSnapshot(query(collection(db, 'journey'), orderBy('day', 'asc')), (snap) => {
       const dbModules = snap.docs.map(d => ({ id: d.id, ...d.data() } as JourneyModule));
       localStorage.setItem('t2s_journey_cache', JSON.stringify(dbModules));
@@ -998,7 +785,6 @@ export default function App() {
     });
 
     return () => {
-      unsubPosts();
       unsubJourney();
       unsubArchives();
       unsubLibrary();
@@ -1020,13 +806,7 @@ export default function App() {
           throw err;
         });
 
-        const postsCount = await getCountFromServer(collection(db, 'posts')).catch(err => {
-          if (err?.message?.includes('failed') || err?.code === 'unavailable') return null;
-          handleFirestoreError(err, OperationType.GET, 'posts/count');
-          throw err;
-        });
-
-        if (!usersCount || !postsCount) {
+        if (!usersCount) {
           console.warn("Metrics fetch incomplete due to connection issues, will retry...");
           return;
         }
@@ -1041,7 +821,6 @@ export default function App() {
         
         setStats({
           users: usersCount.data().count,
-          posts: postsCount.data().count,
           totalXp: (profile.xp || 0)
         });
         if (rankSnap) {
@@ -1170,107 +949,6 @@ export default function App() {
     }
   };
 
-  const createPost = async (content: string) => {
-    if (!user || !content.trim()) return;
-    try {
-      const xpGain = 20;
-      const userRef = doc(db, 'users', user.uid);
-      
-      await addDoc(collection(db, 'posts'), {
-        authorId: user.uid,
-        authorName: profile?.displayName || user.displayName || 'Anonymous User',
-        authorPhotoURL: profile?.photoURL || user.photoURL || null,
-        content,
-        createdAt: serverTimestamp(),
-        likes: 0,
-        likedBy: []
-      });
-
-      try {
-        await updateDoc(userRef, {
-          xp: increment(xpGain),
-          updatedAt: serverTimestamp()
-        });
-      } catch (xpErr) {
-        console.warn("Couldn't reward XP to post creator:", xpErr);
-      }
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'posts');
-    }
-  };
-
-  const likePost = async (postId: string, authorId: string) => {
-    if (!user) return;
-    const postRef = doc(db, 'posts', postId);
-    const authorRef = doc(db, 'users', authorId);
-    const likerRef = doc(db, 'users', user.uid);
-
-    const postObj = posts.find(p => p.id === postId);
-    const hasLiked = postObj?.likedBy?.includes(user.uid) || false;
-
-    try {
-      if (hasLiked) {
-        // Unlike post
-        await updateDoc(postRef, {
-          likes: increment(-1),
-          likedBy: arrayRemove(user.uid)
-        });
-
-        // Award negative XP to author (-5)
-        if (authorId !== user.uid) {
-          try {
-            await updateDoc(authorRef, {
-              xp: increment(-5),
-              updatedAt: serverTimestamp()
-            });
-          } catch (authorErr) {
-            console.warn("Couldn't update author XP on unlike:", authorErr);
-          }
-        }
-
-        // Award negative XP to liker (-2)
-        try {
-          await updateDoc(likerRef, {
-            xp: increment(-2),
-            updatedAt: serverTimestamp()
-          });
-        } catch (likerErr) {
-          console.warn("Couldn't update liker XP on unlike:", likerErr);
-        }
-      } else {
-        // Like post
-        await updateDoc(postRef, {
-          likes: increment(1),
-          likedBy: arrayUnion(user.uid)
-        });
-
-        // Award XP to author (+5)
-        if (authorId !== user.uid) {
-          try {
-            await updateDoc(authorRef, {
-              xp: increment(5),
-              updatedAt: serverTimestamp()
-            });
-          } catch (authorErr) {
-            console.warn("Couldn't update author XP on like:", authorErr);
-          }
-        }
-
-        // Award XP to liker (+2)
-        try {
-          await updateDoc(likerRef, {
-            xp: increment(2),
-            updatedAt: serverTimestamp()
-          });
-        } catch (likerErr) {
-          console.warn("Couldn't update liker XP on like:", likerErr);
-        }
-      }
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `posts/${postId}`);
-    }
-  };
-
   if (loading) return <LoadingScreen />;
 
   if (showGateway) {
@@ -1353,7 +1031,6 @@ export default function App() {
           <NavItem icon={<Brain className="w-5 h-5 text-amber-500" />} label="Sovereign Lab" secondaryLabel="मानसिक प्रयोगशाला" active={activeTab === 'mindlab'} onClick={() => { setActiveTab('mindlab'); setSidebarOpen(false); }} collapsed={!isSidebarOpen} />
           <NavItem icon={<PlayCircle className="w-5 h-5" />} label="Video Archives" secondaryLabel="वीडियो लाइब्रेरी" active={activeTab === 'archives'} onClick={() => { setActiveTab('archives'); setSidebarOpen(false); }} collapsed={!isSidebarOpen} />
           <NavItem icon={<BookOpen className="w-5 h-5" />} label="The Great Library" secondaryLabel="महान पुस्तकालय" active={activeTab === 'library'} onClick={() => { setActiveTab('library'); setSidebarOpen(false); }} collapsed={!isSidebarOpen} />
-          <NavItem icon={<Users className="w-5 h-5" />} label="Community" secondaryLabel="समुदाय" active={activeTab === 'community'} onClick={() => { setActiveTab('community'); setSidebarOpen(false); }} collapsed={!isSidebarOpen} />
           <NavItem icon={<Trophy className="w-5 h-5" />} label="Leaderboard" secondaryLabel="लीडरबोर्ड" active={activeTab === 'leaderboard'} onClick={() => { setActiveTab('leaderboard'); setSidebarOpen(false); }} collapsed={!isSidebarOpen} />
           <NavItem icon={<User className="w-5 h-5" />} label="Profile Hub" secondaryLabel="प्रोफ़ाइल हब" active={activeTab === 'profile'} onClick={() => { setActiveTab('profile'); setSidebarOpen(false); }} collapsed={!isSidebarOpen} />
           
@@ -1534,279 +1211,13 @@ export default function App() {
 
           <AnimatePresence mode="wait">
             {activeTab === 'journey' && (
-              <motion.div key="journey" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-16">
-                {/* Real-time Journey Calendar */}
-                <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000 space-y-6">
-                  <PresenceCalendar 
-                    presenceDays={profile?.presenceDays || []} 
-                    completedDaysCount={profile?.completedDays?.length || 0}
-                  />
-
-                  {/* TFS Strike System Warning banner */}
-                  {(() => {
-                    if (!profile || !profile.completedDays || profile.completedDays.length === 0) return null;
-                    if (!profile.lastCompletedAt) return null;
-                    
-                    const lastCompleted = profile.lastCompletedAt?.toDate?.() || new Date(profile.lastCompletedAt);
-                    const now = new Date();
-                    const todayDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                    const lastCompletedDateOnly = new Date(lastCompleted.getFullYear(), lastCompleted.getMonth(), lastCompleted.getDate());
-                    const daysSinceLastSuccess = Math.floor((todayDateOnly.getTime() - lastCompletedDateOnly.getTime()) / (1000 * 60 * 60 * 24));
-                    
-                    if (daysSinceLastSuccess === 2) {
-                      return (
-                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-amber-500/10 border-2 border-amber-500/30 rounded-[24px] p-6 flex flex-col md:flex-row items-center gap-6 shadow-[0_0_30px_rgba(245,158,11,0.15)] relative overflow-hidden">
-                          <div className="absolute top-0 bottom-0 left-0 w-1.5 bg-amber-500" />
-                          <div className="w-12 h-12 bg-amber-500/15 rounded-full flex items-center justify-center border border-amber-500/20 text-2xl shrink-0 animate-pulse">
-                            ⚠️
-                          </div>
-                          <div className="flex-1 space-y-1 text-center md:text-left">
-                            <h4 className="text-amber-500 font-display font-black text-xs uppercase tracking-widest font-mono">
-                              1 Strike Active / १ स्ट्राइक सक्रिय!
-                            </h4>
-                            <p className="text-white font-bold text-base leading-snug">
-                              आपने कल टास्क की संकलन (Integrate) नहीं की!
-                            </p>
-                            <p className="text-gray-400 text-xs md:text-sm">
-                              आज का टास्क खत्म करें, नहीं तो आपकी पूरी 100-दिन की प्रगति <span className="text-amber-500 font-bold">शून्य (Day 1)</span> पर रीसेट हो जाएगी।
-                            </p>
-                          </div>
-                          <div className="bg-amber-500/10 px-4 py-1.5 rounded-full text-[9px] font-black text-amber-400 uppercase tracking-widest border border-amber-500/15 animate-pulse shrink-0">
-                            CRITICAL LIFELINE
-                          </div>
-                        </motion.div>
-                      );
-                    }
-                    return null;
-                  })()}
-                </div>
-
-                {(() => {
-                  const nextDay = (profile?.completedDays.length || 0) + 1;
-                  const currentModule = journeyModules.find(m => m.day === nextDay) || journeyModules[0];
-                  
-                  const { hour: istHour, dateStr: istDateStr } = getIstHourAndDateStr();
-                  const requiresReflection = istHour >= 22 && (!profile?.dailyReflections || !profile.dailyReflections[istDateStr]);
-                  const hasSubmittedReflection = profile?.dailyReflections && profile.dailyReflections[istDateStr];
-
-                  if (requiresReflection) {
-                    return (
-                      <div className="bg-gradient-to-b from-zinc-950 to-[#0a0a0a] border-2 border-amber-500/30 rounded-[32px] md:rounded-[48px] p-6 md:p-12 relative overflow-hidden group shadow-[0_0_50px_rgba(245,158,11,0.12)]">
-                        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500" />
-                        <div className="relative z-10 space-y-6 md:space-y-8">
-                          <div className="flex items-center justify-between flex-wrap gap-4">
-                            <div className="flex items-center gap-4">
-                              <span className="flex h-3 w-3 relative">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 animate-bounce"></span>
-                                <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
-                              </span>
-                              <span className="text-xs md:text-sm font-black uppercase tracking-widest text-amber-500 font-mono">10:00 PM - The Nightly Council / रात्रि चिंतन</span>
-                            </div>
-                            <span className="text-[10px] font-mono text-white/30 font-bold uppercase tracking-wider bg-white/5 px-3 py-1 rounded-full">{istDateStr} IST</span>
-                          </div>
-                          
-                          <div className="space-y-3">
-                            <h2 className="text-3xl md:text-5xl font-display font-black text-white tracking-tight leading-tight uppercase">
-                              REFLECTION REQUIRED
-                            </h2>
-                            <h3 className="text-xl md:text-3xl font-bold text-amber-400 tracking-tight">चिंतन का सवाल: "आज तुमने दुनिया को क्या सिखाया?"</h3>
-                            <p className="text-gray-400 text-sm md:text-base max-w-2xl leading-relaxed">
-                              भारत के समय के अनुसार रात 10 बज चुके हैं। टॉक2सोसाइटी का नियम है: आज के चिंतन को दर्ज किए बिना आप सफर में आगे नहीं बढ़ सकते।
-                            </p>
-                          </div>
-
-                          <div className="space-y-4 max-w-2xl">
-                            <textarea
-                              value={reflectionText}
-                              onChange={(e) => setReflectionText(e.target.value)}
-                              placeholder="Write your reflection here ... (आज का ज्ञान, सबक या विचार जो आपने किसी को सिखाया या संसार को दिया...)"
-                              className="w-full bg-white/5 border border-white/10 focus:border-amber-500/50 rounded-2xl px-6 py-4 text-sm md:text-base text-white placeholder-gray-650 focus:outline-none focus:ring-1 focus:ring-amber-500/30 h-32 md:h-40 resize-none transition-all font-medium"
-                            />
-                            
-                            <button
-                              disabled={isReflectionSubmitting || !reflectionText.trim()}
-                              onClick={async () => {
-                                if (!reflectionText.trim()) return;
-                                setIsReflectionSubmitting(true);
-                                await submitDailyReflection(reflectionText);
-                                setReflectionText("");
-                                setIsReflectionSubmitting(false);
-                              }}
-                              className="w-full sm:w-auto px-8 md:px-12 py-4 md:py-5 bg-amber-500 hover:bg-amber-400 text-black text-xs md:text-sm font-black uppercase tracking-wider rounded-2xl transition-all flex flex-col items-center gap-1 shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer font-sans"
-                            >
-                              <span>{isReflectionSubmitting ? "Locking in..." : "Lock in Reflection / चिंतन सहेजें"}</span>
-                              <span className="text-[9px] font-bold opacity-60 uppercase tracking-normal normal-case">Unlocks Next Day (+25 XP)</span>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div className="bg-[#0a0a0a] border border-white/10 rounded-[32px] md:rounded-[48px] p-6 md:p-12 relative overflow-hidden group shadow-2xl">
-                      <div className="relative z-10 space-y-6 md:space-y-8">
-                        <div className="flex justify-between items-center flex-wrap gap-4">
-                          <div className="flex items-center gap-4">
-                            <div className="w-2.5 h-2.5 bg-white rounded-full animate-pulse" />
-                            <span className="text-xs md:text-sm font-bold uppercase tracking-wider text-white/60">Your Path / आपकी प्रगति</span>
-                          </div>
-                          {hasSubmittedReflection && (
-                            <span className="text-[10px] font-mono font-black uppercase tracking-widest text-green-400 bg-green-500/10 px-3 py-1 rounded-full border border-green-500/20 flex items-center gap-1.5 animate-pulse">
-                              ✓ REFLECTION COMPLETED / चिंतन पूरा हुआ
-                            </span>
-                          )}
-                        </div>
-                        <h2 className="text-3xl md:text-5xl font-display font-black text-white tracking-tight leading-tight uppercase">
-                          TODAY'S GOAL: <span className="text-gray-500">{currentModule?.title || 'Starting Point'}</span>
-                        </h2>
-                        <h3 className="text-xl md:text-3xl font-bold text-white/40 tracking-tight">लक्ष्य: {currentModule?.title || 'शुरुआत'}</h3>
-                        <p className="text-gray-400 text-sm md:text-lg max-w-2xl leading-relaxed font-medium">
-                          {currentModule?.description || 'Your journey into mind training begins here. Complete the modules below to progress.'}
-                        </p>
-                        <button 
-                          onClick={() => {
-                            if (currentModule) {
-                              const moduleEl = document.getElementById(`module-${currentModule.id}`);
-                              moduleEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            }
-                          }} 
-                          className="w-full sm:w-auto px-8 md:px-12 py-4 md:py-5 bg-white text-black text-xs md:text-sm font-bold uppercase tracking-wider rounded-2xl hover:bg-neutral-200 transition-all flex flex-col items-center gap-1.5 shadow-2xl"
-                        >
-                           <span>{currentModule ? `Start Day ${currentModule.day}` : 'Begin Journey'}</span>
-                           <span className="text-[10px] md:text-[11px] opacity-60 normal-case tracking-normal">{currentModule ? `डे ${currentModule.day} शुरू करें` : 'सफर शुरू करें'}</span>
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 md:gap-12 pt-8 md:pt-12">
-                  <div className="max-w-2xl space-y-4 md:space-y-6">
-                    <h1 className="text-4xl md:text-7xl font-display font-black text-white tracking-tight leading-tight uppercase">
-                      100-Day <span className="text-gray-500">Journey</span>
-                    </h1>
-                    <p className="text-gray-400 text-lg md:text-2xl leading-relaxed font-medium">
-                      A simple, practical path to improving your mental strength. One step at a time.
-                    </p>
-                  </div>
-                  <div className="bg-white/5 border border-white/5 p-6 md:p-8 rounded-[32px] min-w-[200px] md:min-w-[240px]">
-                    <div className="text-3xl md:text-4xl font-display font-black text-white mb-2">{(profile?.completedDays.length || 0)}/100</div>
-                    <div className="text-[10px] md:text-xs uppercase tracking-wider text-gray-500 font-bold mb-4">Progress Status</div>
-                    <ProgressBar progress={(profile?.completedDays.length || 0)} />
-                  </div>
-                </div>
-
-                {profile && (
-                  <JourneyProgressCalendar 
-                    completedDays={profile.completedDays || []} 
-                  />
-                )}
-
-                {/* Category Filters */}
-                <div className="flex flex-wrap items-center gap-2 pb-6 border-b border-white/5">
-                  <span className="text-[10px] uppercase font-bold tracking-widest text-gray-500 mr-2">Filter Protocols:</span>
-                  {[
-                    'All',
-                    'Manipulation',
-                    'Body Language',
-                    'Strategic Thinking',
-                    'Discipline',
-                    'Mindset',
-                    'Mystery & Presence'
-                  ].map((category) => {
-                    const isSelected = selectedJourneyCategory === category;
-                    return (
-                      <button
-                        key={category}
-                        onClick={() => setSelectedJourneyCategory(category)}
-                        className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all duration-300 border ${
-                          isSelected 
-                            ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.15)]' 
-                            : 'bg-white/5 text-gray-400 border-white/5 hover:bg-white/10 hover:text-white'
-                        }`}
-                      >
-                        {category}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {journeyModules.length === 0 ? <NoContent label="Journey Modules" /> : (() => {
-                  const filteredModules = selectedJourneyCategory === 'All'
-                    ? journeyModules
-                    : journeyModules.filter(m => m.category === selectedJourneyCategory);
-
-                  if (filteredModules.length === 0) {
-                    return <NoContent label={`Journey Modules in ${selectedJourneyCategory}`} />;
-                  }
-
-                  return (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                      {filteredModules.map((module) => {
-                        const isCompleted = profile?.completedDays.includes(module.day);
-                        const isNext = (profile?.completedDays.length || 0) + 1 === module.day;
-                        const journeyLocked = !isCompleted && !isNext && module.day > 1;
-                        const isPremiumLocked = module.isPremium && !profile?.isStrategist && !profile?.isAdmin;
-                        const finalLocked = journeyLocked || isPremiumLocked;
-
-                        return (
-                          <Card 
-                            key={module.id} 
-                            id={`module-${module.id}`} 
-                            className={`cursor-pointer transition-all duration-300 relative overflow-hidden group ${isPremiumLocked ? 'border-amber-500/20 hover:border-amber-500/50 bg-amber-500/[0.01]' : journeyLocked ? 'opacity-40 grayscale pointer-events-none' : 'hover:border-white/20 hover:bg-white/[0.02]'}`}
-                            onClick={() => {
-                              if (isPremiumLocked) {
-                                  setIsAscensionOpen(true);
-                              } else if (!journeyLocked) {
-                                  setSelectedJourneyModule(module);
-                              }
-                            }}
-                          >
-                            <div className="flex justify-between items-start mb-6">
-                              <div className="flex flex-col gap-1.5 items-start">
-                                <span className="text-5xl font-black text-white/5 group-hover:text-amber-500/20 transition-colors duration-500 font-mono leading-none">
-                                  {module.day < 10 ? `0${module.day}` : module.day}
-                                </span>
-                                {module.category && !journeyLocked && (
-                                  <span className="text-[9px] font-black uppercase tracking-widest text-amber-500/80 bg-amber-500/5 border border-amber-500/10 px-2 py-0.5 rounded-md font-mono mt-2">
-                                    {module.category}
-                                  </span>
-                                )}
-                              </div>
-                              {isCompleted ? <CheckCircle2 className="w-5 h-5 text-white" /> : isPremiumLocked ? <Zap className="w-5 h-5 text-amber-500 fill-amber-500 animate-pulse" /> : journeyLocked ? <Lock className="w-5 h-5 text-gray-700" /> : <ChevronRight className="w-5 h-5 text-white" />}
-                            </div>
-                            <div className="flex items-center gap-2 mb-2">
-                              <h3 className="text-lg font-bold text-white leading-tight">
-                                {journeyLocked ? "🔒 Locked Protocol / लॉक प्रोटोकॉल" : isPremiumLocked ? `🔒 Premium: ${module.title}` : module.title}
-                              </h3>
-                              {module.isPremium && <Zap className="w-4 h-4 text-amber-500 fill-amber-500 shrink-0" />}
-                            </div>
-                            <p className="text-xs text-gray-500 leading-relaxed mb-6 h-12 overflow-hidden line-clamp-3">
-                              {journeyLocked 
-                                ? "इस नियम को खोलने के लिए पिछले दिनों के कार्य पूरे करें। / Complete the previous days' protocols to unlock." 
-                                : isPremiumLocked 
-                                ? "यह रणनीतिक विषय प्रीमियम सदस्यों के लिए है। अनलॉक करने के लिए क्लिक करें। / This strategy is reserved for Premium sovereigns. Click to request unlock."
-                                : module.description}
-                            </p>
-                            {!finalLocked && !isCompleted && (
-                              <button 
-                                onClick={(e) => { 
-                                  e.stopPropagation(); 
-                                  completeDay(module.day); 
-                                }} 
-                                className="w-full py-3 bg-white text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-200 transition-all flex flex-col items-center"
-                              >
-                                <span className="flex items-center gap-2"><Zap className="w-3 h-3" /> Integrate</span>
-                                <span className="text-[8px] normal-case tracking-normal opacity-50">शुरू करें</span>
-                              </button>
-                            )}
-                          </Card>
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
+              <motion.div key="journey" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+                <JourneyView
+                  journeyModules={journeyModules}
+                  profile={profile}
+                  onCompleteDay={completeDay}
+                  onSubmitReflection={submitDailyReflection}
+                />
               </motion.div>
             )}
 
@@ -1828,70 +1239,123 @@ export default function App() {
               </motion.div>
             )}
 
-            {activeTab === 'library' && (
-              <motion.div key="library" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8 w-full">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {library.length === 0 ? (
-                    <div className="lg:col-span-3">
-                      <NoContent label="Library Archives" />
-                      {profile?.isAdmin && (
-                        <div className="text-center">
+            {activeTab === 'library' && (() => {
+              const libraryCategories = ['All', ...Array.from(new Set(library.map(b => b.category).filter(Boolean)))];
+              const filteredLibrary = library.filter(b => {
+                const matchesCat = selectedLibraryCategory === 'All' || b.category?.toLowerCase() === selectedLibraryCategory.toLowerCase();
+                const q = librarySearch.toLowerCase().trim();
+                const matchesSearch = !q || b.title?.toLowerCase().includes(q) || b.author?.toLowerCase().includes(q) || b.excerpt?.toLowerCase().includes(q);
+                return matchesCat && matchesSearch;
+              });
+
+              return (
+                <motion.div key="library" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8 w-full">
+                  {/* Great Library Header Banner */}
+                  <div className="bg-[#0c0e14] border border-[#1d222e] rounded-[32px] p-6 md:p-8 shadow-2xl relative overflow-hidden space-y-6">
+                    <div className="absolute top-0 right-0 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+                    
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-3 mb-1.5">
+                          <div className="p-2 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-500">
+                            <BookOpen className="w-5 h-5" />
+                          </div>
+                          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500 font-mono">
+                            CLASSIFIED MANUSCRIPTS / महान पुस्तकालय
+                          </span>
+                        </div>
+                        <h2 className="text-2xl md:text-3xl font-display font-black text-white uppercase italic tracking-tight">
+                          The Great <span className="text-amber-500">Library</span>
+                        </h2>
+                        <p className="text-xs text-gray-400 mt-1 max-w-xl">
+                          Access strategic manuscripts, power laws, psychological studies, and foundational texts for sovereign thinkers.
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-3 self-start md:self-auto">
+                        <span className="px-3.5 py-1.5 bg-white/5 border border-white/10 rounded-xl text-xs font-mono font-bold text-gray-300">
+                          {filteredLibrary.length} / {library.length} Manuscripts
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Search & Category Filter Bar */}
+                    <div className="pt-4 border-t border-white/5 flex flex-col md:flex-row gap-4 justify-between items-stretch md:items-center">
+                      <div className="relative flex-1 max-w-md">
+                        <Search className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={librarySearch}
+                          onChange={(e) => setLibrarySearch(e.target.value)}
+                          placeholder="Search title, author, or keywords..."
+                          className="w-full bg-black/50 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-500/50 transition-all font-medium"
+                        />
+                      </div>
+
+                      {/* Category Filter Pills */}
+                      <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-none">
+                        {libraryCategories.map((cat) => (
+                          <button
+                            key={cat}
+                            onClick={() => setSelectedLibraryCategory(cat)}
+                            className={`px-3.5 py-2 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer ${
+                              selectedLibraryCategory === cat
+                                ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
+                                : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 border border-white/5'
+                            }`}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Books Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {filteredLibrary.length === 0 ? (
+                      <div className="lg:col-span-3 py-16 text-center space-y-4 bg-white/5 rounded-[32px] border border-white/5">
+                        <BookOpen className="w-12 h-12 text-gray-600 mx-auto" />
+                        <div>
+                          <p className="text-white font-bold text-sm uppercase tracking-wider">No Manuscripts Match Search</p>
+                          <p className="text-gray-500 text-xs font-mono mt-1">Try adjusting your category filter or search keywords</p>
+                        </div>
+                        {profile?.isAdmin && (
                           <button 
                             onClick={() => setActiveTab('admin')} 
-                            className="text-amber-500 text-xs font-black uppercase tracking-widest border-b border-amber-500/20 hover:border-amber-500 transition-all"
+                            className="mt-4 px-5 py-2.5 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-mono font-black uppercase tracking-widest rounded-xl hover:bg-amber-500 hover:text-black transition-all inline-block"
                           >
-                            Go to Command Panel to Seed Library
+                            Add New Books via Admin Panel
                           </button>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    library.map(b => (
-                      <BookCard 
-                        key={b.id} 
-                        book={b} 
-                        isLocked={b.isPremium && !profile?.isStrategist && !profile?.isAdmin}
-                        onClick={() => setSelectedBook(b)}
-                        onUnlockClick={() => setIsAscensionOpen(true)}
-                      />
-                    ))
-                  )}
-                </div>
-              </motion.div>
-            )}
-
-            {activeTab === 'community' && (
-              <motion.div key="community" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="max-w-3xl mx-auto space-y-8">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-                  <CommunityStat label="Users Online" secondaryLabel="सक्रीय सदस्य" value={stats.users.toLocaleString()} icon={<Users className="w-4 h-4" />} />
-                  <CommunityStat label="Total Posts" secondaryLabel="कुल पोस्ट" value={stats.posts.toLocaleString()} icon={<TrendingUp className="w-4 h-4" />} />
-                  <div className="sm:col-span-2 lg:col-span-1">
-                    <CommunityStat label="Global Level" secondaryLabel="ग्लोबल लेवल" value={String(Math.floor(stats.users > 0 ? (stats.totalXp / stats.users) / 100 : 0) + 1)} icon={<Shield className="w-4 h-4" />} />
+                        )}
+                      </div>
+                    ) : (
+                      filteredLibrary.map(b => (
+                        <BookCard 
+                          key={b.id} 
+                          book={b} 
+                          isLocked={b.isPremium && !profile?.isStrategist && !profile?.isAdmin}
+                          onClick={() => {
+                            if (b.isPremium && !profile?.isStrategist && !profile?.isAdmin) {
+                              setIsAscensionOpen(true);
+                            } else {
+                              setSelectedBook(b);
+                            }
+                          }}
+                          onUnlockClick={() => setIsAscensionOpen(true)}
+                        />
+                      ))
+                    )}
                   </div>
-                </div>
-                <PostForm onSubmit={createPost} user={user} displayName={profile?.displayName} />
-                <div className="space-y-4">
-                  {posts.map(post => (
-                    <PostCard 
-                      key={post.id} 
-                      post={post} 
-                      onLike={() => likePost(post.id, post.authorId)} 
-                      currentUserId={user?.uid}
-                    />
-                  ))}
-                </div>
-              </motion.div>
-            )}
+                </motion.div>
+              );
+            })()}
+
+
 
             {activeTab === 'leaderboard' && (
-              <motion.div key="leaderboard" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} className="space-y-12">
-                <div className="space-y-6">
-                  <h1 className="text-4xl md:text-7xl font-display font-black text-white tracking-tight uppercase italic underline decoration-amber-500/30 decoration-8 underline-offset-8">Global <span className="text-gray-500">Hierarchy</span></h1>
-                  <p className="text-gray-400 text-lg md:text-2xl leading-relaxed font-medium">The most disciplined minds in the society. Ranks are awarded based on total experience and consistency.</p>
-                </div>
-                <div className="max-w-5xl">
-                   <LeaderboardView currentUserUid={user?.uid} />
-                </div>
+              <motion.div key="leaderboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <LeaderboardTab currentUserProfile={profile} />
               </motion.div>
             )}
 
@@ -1923,110 +1387,170 @@ export default function App() {
       </main>
 
       <AnimatePresence>
-        {selectedVideo && (
-          <ContentModal 
-            title={selectedVideo.title} 
-            onClose={() => setSelectedVideo(null)}
-          >
-            <div className="aspect-video bg-black rounded-2xl overflow-hidden relative border border-white/5">
-              {selectedVideo.videoUrl ? (
-                <iframe
-                  src={`https://www.youtube.com/embed/${getYouTubeId(selectedVideo.videoUrl)}?autoplay=1`}
-                  className="w-full h-full border-0 grayscale hover:grayscale-0 transition-all duration-700"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
+        {selectedVideo && (() => {
+          const isLocked = selectedVideo.isPremium && !profile?.isStrategist && !profile?.isAdmin;
+          return (
+            <ContentModal 
+              title={selectedVideo.title} 
+              onClose={() => setSelectedVideo(null)}
+            >
+              {isLocked ? (
+                <div className="p-12 text-center space-y-6 my-auto">
+                  <div className="w-16 h-16 mx-auto bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-center text-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.2)]">
+                    <Lock className="w-8 h-8" />
+                  </div>
+                  <div className="space-y-2">
+                    <span className="px-3 py-1 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-mono font-bold uppercase tracking-widest rounded-lg inline-block">
+                      SOVEREIGN PREMIUM TRANSMISSION
+                    </span>
+                    <h3 className="text-xl font-black text-white uppercase italic">
+                      {selectedVideo.title}
+                    </h3>
+                    <p className="text-xs text-gray-400 max-w-md mx-auto">
+                      This video transmission is classified exclusively for Sovereign Tier members. Upgrade your account to unlock full access.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => { setSelectedVideo(null); setIsAscensionOpen(true); }}
+                    className="px-6 py-3 bg-gradient-to-r from-amber-500 to-yellow-500 text-black font-black uppercase tracking-wider text-xs rounded-xl shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:scale-105 transition-all cursor-pointer font-mono"
+                  >
+                    Upgrade Account Access / अपग्रेड करें
+                  </button>
+                </div>
               ) : (
-                <>
-                  <img src={selectedVideo.thumbnail} className="w-full h-full object-cover opacity-20 grayscale" alt="video" />
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6">
-                    <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-6 shadow-[0_0_50px_rgba(255,255,255,0.1)]">
-                      <PlayCircle className="w-10 h-10 text-black fill-black" />
-                    </div>
-                    <h2 className="text-2xl font-black text-white italic mb-2 tracking-tighter uppercase">{selectedVideo.title}</h2>
-                    <div className="text-white/40 font-black text-[10px] uppercase tracking-[0.3em]">Authorized Archive Stream</div>
-                    <p className="mt-8 text-gray-600 text-xs max-w-md font-medium leading-relaxed font-mono uppercase">
-                      Deciphering behavioral layers. Audio stream encrypted.
-                    </p>
-                  </div>
-                </>
+                <div className="aspect-video bg-black rounded-2xl overflow-hidden relative border border-white/5">
+                  {selectedVideo.videoUrl ? (
+                    <iframe
+                      src={`https://www.youtube.com/embed/${getYouTubeId(selectedVideo.videoUrl)}?autoplay=1`}
+                      className="w-full h-full border-0 grayscale hover:grayscale-0 transition-all duration-700"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <>
+                      <img src={selectedVideo.thumbnail} className="w-full h-full object-cover opacity-20 grayscale" alt="video" />
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6">
+                        <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-6 shadow-[0_0_50px_rgba(255,255,255,0.1)]">
+                          <PlayCircle className="w-10 h-10 text-black fill-black" />
+                        </div>
+                        <h2 className="text-2xl font-black text-white italic mb-2 tracking-tighter uppercase">{selectedVideo.title}</h2>
+                        <div className="text-white/40 font-black text-[10px] uppercase tracking-[0.3em]">Authorized Archive Stream</div>
+                        <p className="mt-8 text-gray-600 text-xs max-w-md font-medium leading-relaxed font-mono uppercase">
+                          Deciphering behavioral layers. Audio stream encrypted.
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
               )}
-            </div>
-          </ContentModal>
-        )}
+            </ContentModal>
+          );
+        })()}
 
-        {selectedBook && (
-          <ContentModal 
-            title={selectedBook.title} 
-            onClose={() => setSelectedBook(null)}
-            maxWidth="max-w-7xl"
-          >
-            <div className="h-full flex flex-col min-h-[85vh]">
-              <div className="p-8 border-b border-white/5 bg-black/40 shrink-0 flex flex-col md:flex-row justify-between gap-6 items-start md:items-center">
-                <div className="flex gap-8 items-start">
-                  <div className="w-20 h-28 bg-neutral-900 border border-white/5 rounded-xl flex items-center justify-center shadow-2xl shrink-0">
-                    <BookOpen className="w-8 h-8 text-amber-500" />
+        {selectedBook && (() => {
+          const isLocked = selectedBook.isPremium && !profile?.isStrategist && !profile?.isAdmin;
+          return (
+            <ContentModal 
+              title={selectedBook.title} 
+              onClose={() => setSelectedBook(null)}
+              maxWidth="max-w-7xl"
+            >
+              {isLocked ? (
+                <div className="p-12 text-center space-y-6 my-auto">
+                  <div className="w-16 h-16 mx-auto bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-center text-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.2)]">
+                    <Lock className="w-8 h-8" />
                   </div>
-                  <div className="flex-1 space-y-2">
-                    <div>
-                      <div className="text-amber-500 text-[8px] font-black uppercase tracking-widest mb-1">{selectedBook.category}</div>
-                      <h2 className="text-2xl font-black text-white italic tracking-tighter leading-none">{selectedBook.title}</h2>
-                      <div className="text-[10px] text-gray-500 mt-1 font-bold uppercase tracking-widest">— {selectedBook.author}</div>
-                    </div>
-                    <p className="text-gray-400 text-[10px] italic leading-relaxed line-clamp-2">
-                      "{selectedBook.excerpt}"
+                  <div className="space-y-2">
+                    <span className="px-3 py-1 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-mono font-bold uppercase tracking-widest rounded-lg inline-block">
+                      SOVEREIGN MANUSCRIPT RESTRICTED
+                    </span>
+                    <h3 className="text-2xl font-black text-white uppercase italic">
+                      {selectedBook.title}
+                    </h3>
+                    <p className="text-xs text-gray-400 max-w-md mx-auto">
+                      This strategic manuscript is restricted to Sovereign Tier members. Upgrade your account to unlock full manuscript reading.
                     </p>
+                  </div>
+                  <button
+                    onClick={() => { setSelectedBook(null); setIsAscensionOpen(true); }}
+                    className="px-6 py-3 bg-gradient-to-r from-amber-500 to-yellow-500 text-black font-black uppercase tracking-wider text-xs rounded-xl shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:scale-105 transition-all cursor-pointer font-mono"
+                  >
+                    Unlock Full Library Access / अपग्रेड करें
+                  </button>
+                </div>
+              ) : (
+                <div className="h-full flex flex-col min-h-[85vh]">
+                  <div className="p-8 border-b border-white/5 bg-black/40 shrink-0 flex flex-col md:flex-row justify-between gap-6 items-start md:items-center">
+                    <div className="flex gap-8 items-start">
+                      <div className="w-20 h-28 bg-neutral-900 border border-white/5 rounded-xl flex items-center justify-center shadow-2xl shrink-0 overflow-hidden">
+                        {selectedBook.coverUrl ? (
+                          <img src={selectedBook.coverUrl} className="w-full h-full object-cover" alt="cover" />
+                        ) : (
+                          <BookOpen className="w-8 h-8 text-amber-500" />
+                        )}
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <div>
+                          <div className="text-amber-500 text-[8px] font-black uppercase tracking-widest mb-1">{selectedBook.category}</div>
+                          <h2 className="text-2xl font-black text-white italic tracking-tighter leading-none">{selectedBook.title}</h2>
+                          <div className="text-[10px] text-gray-500 mt-1 font-bold uppercase tracking-widest">— {selectedBook.author}</div>
+                        </div>
+                        <p className="text-gray-400 text-[10px] italic leading-relaxed line-clamp-2">
+                          "{selectedBook.excerpt}"
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex-1 bg-neutral-900 relative min-h-[600px]">
+                    {selectedBook.fileUrl ? (
+                      <>
+                        <div className="absolute inset-0 flex items-center justify-center bg-neutral-900 z-0">
+                          <div className="text-center p-8">
+                            <div className="w-12 h-12 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                            <p className="text-gray-500 text-xs font-bold uppercase tracking-widest">Initializing Secure Nexus Reader...</p>
+                            <p className="text-gray-700 text-[10px] mt-2 italic max-w-xs mx-auto">
+                              If the manuscript remains encrypted (does not load), ensure you are logged into Google and "Third-party cookies" are allowed for this session.
+                            </p>
+                          </div>
+                        </div>
+                        <iframe 
+                          key={selectedBook.fileUrl}
+                          src={getDrivePreviewUrl(selectedBook.fileUrl) || undefined} 
+                          className="absolute inset-0 w-full h-full border-0 z-10"
+                          title="book-viewer"
+                          allow="autoplay"
+                          sandbox="allow-scripts allow-same-origin allow-forms"
+                          referrerPolicy="no-referrer"
+                        />
+                      </>
+                    ) : (
+                      <div className="h-full flex items-center justify-center p-12 text-center bg-[#0a0a0a]">
+                        <div className="max-w-md space-y-6">
+                          <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto">
+                            <Lock className="w-8 h-8 text-amber-500" />
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-black text-white italic tracking-tighter uppercase mb-2">Manuscript Restricted</h3>
+                            <p className="text-gray-500 text-xs font-medium leading-relaxed uppercase tracking-widest">
+                              The central database record for this manuscript does not contain a verified link. 
+                            </p>
+                          </div>
+                          <div className="p-4 bg-white/5 border border-white/5 rounded-2xl text-[10px] text-gray-400 font-bold uppercase tracking-widest text-left">
+                            <p className="mb-2 text-amber-500/80">ADMIN ACTION REQUIRED:</p>
+                            1. Visit Nexus Command (Admin Panel)<br/>
+                            2. Edit this book record<br/>
+                            3. Provide a valid Google Drive Sharing URL
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-              
-              <div className="flex-1 bg-neutral-900 relative min-h-[600px]">
-                {selectedBook.fileUrl ? (
-                  <>
-                    <div className="absolute inset-0 flex items-center justify-center bg-neutral-900 z-0">
-                      <div className="text-center p-8">
-                        <div className="w-12 h-12 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                        <p className="text-gray-500 text-xs font-bold uppercase tracking-widest">Initializing Secure Nexus Reader...</p>
-                        <p className="text-gray-700 text-[10px] mt-2 italic max-w-xs mx-auto">
-                          If the manuscript remains encrypted (does not load), ensure you are logged into Google and "Third-party cookies" are allowed for this session.
-                        </p>
-                      </div>
-                    </div>
-                    <iframe 
-                      key={selectedBook.fileUrl}
-                      src={getDrivePreviewUrl(selectedBook.fileUrl) || undefined} 
-                      className="absolute inset-0 w-full h-full border-0 z-10"
-                      title="book-viewer"
-                      allow="autoplay"
-                      sandbox="allow-scripts allow-same-origin allow-forms"
-                      referrerPolicy="no-referrer"
-                    />
-                  </>
-                ) : (
-                  <div className="h-full flex items-center justify-center p-12 text-center bg-[#0a0a0a]">
-                    <div className="max-w-md space-y-6">
-                      <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto">
-                        <Lock className="w-8 h-8 text-amber-500" />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-black text-white italic tracking-tighter uppercase mb-2">Manuscript Restricted</h3>
-                        <p className="text-gray-500 text-xs font-medium leading-relaxed uppercase tracking-widest">
-                          The central database record for this manuscript does not contain a verified link. 
-                        </p>
-                      </div>
-                      <div className="p-4 bg-white/5 border border-white/5 rounded-2xl text-[10px] text-gray-400 font-bold uppercase tracking-widest text-left">
-                        <p className="mb-2 text-amber-500/80">ADMIN ACTION REQUIRED:</p>
-                        1. Visit Nexus Command (Admin Panel)<br/>
-                        2. Edit this book record<br/>
-                        3. Provide a valid Google Drive Sharing URL
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </ContentModal>
-        )}
+              )}
+            </ContentModal>
+          );
+        })()}
 
         {isSearchOpen && (
           <SearchModal 
@@ -2036,6 +1560,12 @@ export default function App() {
             library={library} 
             profile={profile}
             onSelect={(type, item) => {
+              const isLocked = item.isPremium && !profile?.isStrategist && !profile?.isAdmin;
+              if (isLocked) {
+                setIsSearchOpen(false);
+                setIsAscensionOpen(true);
+                return;
+              }
               if (type === 'journey') setActiveTab('journey');
               if (type === 'archive') {
                 setActiveTab('archives');
@@ -3033,38 +2563,67 @@ function VideoCard({ video, onClick, isLocked, onUnlockClick }: { video: VideoAr
 
 function BookCard({ book, onClick, isLocked, onUnlockClick }: { book: LibraryBook, onClick: () => void, isLocked?: boolean, onUnlockClick?: () => void, key?: React.Key }) {
   return (
-    <div className={`flex flex-col sm:flex-row gap-6 md:gap-8 group cursor-pointer ${isLocked ? 'opacity-80' : ''}`} onClick={isLocked ? onUnlockClick : onClick}>
-      <div className="w-full sm:w-40 h-56 md:h-56 bg-neutral-900 border border-white/5 rounded-3xl shadow-2xl transition-all group-hover:-translate-y-2 flex flex-col p-0 overflow-hidden shrink-0 relative">
-        {book.coverUrl ? (
-          <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 font-display" />
-        ) : (
-          <div className="flex-1 border border-white/5 rounded flex items-center justify-center">
-            <BookOpen className="w-10 h-10 text-white/40" />
-          </div>
-        )}
-        
-        {isLocked && (
-          <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center backdrop-blur-[2px]">
-            <Lock className="w-8 h-8 text-amber-500 mb-1" />
-            <span className="text-[8px] font-mono text-amber-500 font-black uppercase tracking-widest">Premium</span>
-          </div>
-        )}
+    <div 
+      className={`bg-[#0c0e14] border border-[#1d222e] hover:border-amber-500/30 rounded-[28px] p-5 transition-all group cursor-pointer flex flex-col justify-between shadow-xl relative overflow-hidden ${isLocked ? 'opacity-90' : ''}`} 
+      onClick={isLocked ? onUnlockClick : onClick}
+    >
+      <div className="flex flex-col sm:flex-row gap-5">
+        <div className="w-full sm:w-32 h-44 bg-neutral-900 border border-white/10 rounded-2xl overflow-hidden shrink-0 relative group-hover:scale-[1.02] transition-transform">
+          {book.coverUrl ? (
+            <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" />
+          ) : (
+            <div className="w-full h-full border border-white/5 bg-black/50 flex flex-col items-center justify-center p-2 text-center">
+              <BookOpen className="w-8 h-8 text-amber-500/60 mb-2" />
+              <span className="text-[8px] font-mono text-gray-500 uppercase">Strategic Text</span>
+            </div>
+          )}
+          
+          {isLocked && (
+            <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center backdrop-blur-[2px]">
+              <Lock className="w-6 h-6 text-amber-500 mb-1" />
+              <span className="text-[7px] font-mono text-amber-500 font-black uppercase tracking-widest">Locked Pass</span>
+            </div>
+          )}
 
-        {book.isPremium && (
-          <div className="absolute top-4 right-4 w-8 h-8 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-xl flex items-center justify-center shadow-xl z-10">
-            <Zap size={12} className="text-black" fill="black" />
-          </div>
-        )}
-      </div>
-      <div className="flex-1 space-y-4 py-2">
-        <div className="flex items-center justify-between">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-white/40">{book.category}</div>
+          {book.isPremium && (
+            <div className="absolute top-2.5 right-2.5 w-6 h-6 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-lg flex items-center justify-center shadow-lg z-10">
+              <Zap size={10} className="text-black" fill="black" />
+            </div>
+          )}
         </div>
-        <h3 className="text-3xl font-display font-black text-white tracking-tight leading-tight">{book.title}</h3>
-        <p className="text-sm text-gray-500 leading-relaxed line-clamp-4 font-medium italic">"{book.excerpt}"</p>
-        <button className={`pt-2 text-xs font-mono font-black uppercase tracking-wider border-b-2 transition-all flex items-center gap-2 ${isLocked ? 'text-amber-500 border-amber-500/20 hover:border-amber-500/80' : 'text-white border-white/20 hover:border-white'}`}>
-          {isLocked ? '🔒 UNLOCK ASSET' : 'Read Manuscript'} <ChevronRight className="w-4 h-4" />
-        </button>
+
+        <div className="flex-1 flex flex-col justify-between space-y-2">
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-amber-500/90 px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded-md">
+                {book.category || 'General'}
+              </span>
+              {book.isPremium && (
+                <span className="text-[8px] font-mono font-black text-amber-400 uppercase tracking-widest flex items-center gap-1">
+                  Sovereign <Zap size={8} fill="currentColor" />
+                </span>
+              )}
+            </div>
+            <h3 className="text-lg font-display font-black text-white group-hover:text-amber-400 transition-colors tracking-tight leading-snug line-clamp-2">
+              {book.title}
+            </h3>
+            {book.author && (
+              <p className="text-[10px] text-gray-400 font-mono font-semibold uppercase tracking-wider mt-0.5">
+                by {book.author}
+              </p>
+            )}
+            <p className="text-xs text-gray-400 leading-relaxed line-clamp-3 italic mt-2">
+              "{book.excerpt}"
+            </p>
+          </div>
+
+          <div className="pt-2 border-t border-white/5 flex items-center justify-between">
+            <span className={`text-[10px] font-mono font-black uppercase tracking-wider flex items-center gap-1.5 ${isLocked ? 'text-amber-500' : 'text-gray-300 group-hover:text-amber-400'}`}>
+              {isLocked ? '🔒 Unlock Sovereign Manuscript' : 'Read Manuscript'}
+            </span>
+            <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-amber-400 group-hover:translate-x-1 transition-all" />
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -3084,39 +2643,6 @@ function PostForm({ onSubmit, user, displayName }: any) {
   );
 }
 
-function PostCard({ post, onLike, currentUserId }: { post: CommunityPost, onLike?: () => void, currentUserId?: string, key?: React.Key }) {
-  const hasLiked = currentUserId && post.likedBy?.includes(currentUserId);
-  return (
-    <Card className="p-6 md:p-8 group hover:scale-[1.01] transition-transform">
-      <div className="flex justify-between mb-4 md:mb-6">
-        <div className="flex items-center gap-3 md:gap-4">
-          <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-white/5 flex items-center justify-center text-xs font-bold text-white/40 uppercase border border-white/5 overflow-hidden">
-            {post.authorPhotoURL ? (
-              <img src={post.authorPhotoURL} alt={post.authorName} className="w-full h-full object-cover" />
-            ) : (
-              post.authorName?.charAt(0)
-            )}
-          </div>
-          <div className="flex flex-col gap-0.5">
-            <div className="text-xs md:text-sm font-bold text-white uppercase leading-tight">{post.authorName}</div>
-            <div className="text-[9px] md:text-[10px] text-gray-500 font-bold uppercase tracking-wider leading-tight">Community Member</div>
-          </div>
-        </div>
-      </div>
-      <p className="text-gray-400 text-sm md:text-base leading-relaxed mb-6 md:mb-8 font-medium group-hover:text-white transition-colors">{post.content}</p>
-      <div className="flex gap-4 md:gap-6 border-t border-white/5 pt-4 md:pt-6">
-        <button 
-          onClick={onLike}
-          className={`flex items-center gap-3 text-xs font-bold uppercase tracking-wider transition-all group/like ${hasLiked ? 'text-amber-500 hover:text-amber-400' : 'text-gray-500 hover:text-white'}`}
-        >
-          <Heart className={`w-5 h-5 transition-all ${hasLiked ? 'fill-amber-500 text-amber-500 scale-110' : 'group-hover/like:scale-125'}`} /> 
-          {post.likes} <span className="hidden sm:inline">{post.likes === 1 ? 'Like' : 'Likes'}</span>
-        </button>
-      </div>
-    </Card>
-  );
-}
-
 function NavItem({ icon, label, secondaryLabel, active, onClick, collapsed }: any) {
   return (
     <button onClick={onClick} className={`w-full flex items-center gap-4 p-3.5 rounded-2xl transition-all duration-300 group relative ${active ? 'bg-zinc-800 text-white shadow-md' : 'text-zinc-300 hover:text-white hover:bg-zinc-900 border border-transparent hover:border-zinc-800'}`}>
@@ -3129,21 +2655,6 @@ function NavItem({ icon, label, secondaryLabel, active, onClick, collapsed }: an
       )}
       {active && <motion.div layoutId="nav-active" className="absolute left-[-1rem] top-1/4 bottom-1/4 w-1 bg-amber-500 rounded-r-full shadow-[0_0_10px_rgba(245,158,11,0.5)]" />}
     </button>
-  );
-}
-
-function CommunityStat({ label, secondaryLabel, value, icon }: { label: string, secondaryLabel?: string, value: string, icon: React.ReactNode }) {
-  return (
-    <div className="bg-[#0b0b0b] border border-zinc-800 p-6 rounded-3xl text-center space-y-3 group hover:border-zinc-700 transition-all flex flex-col items-center">
-      <div className="flex flex-col items-center gap-1.5 text-zinc-300 group-hover:text-white transition-colors">
-        <div className="flex items-center gap-2">
-          {icon}
-          <span className="text-[10px] font-extrabold uppercase tracking-wider leading-tight">{label}</span>
-        </div>
-        {secondaryLabel && <span className="text-[8px] font-extrabold text-amber-500/95">{secondaryLabel}</span>}
-      </div>
-      <div className="text-3xl font-display font-black text-white">{value}</div>
-    </div>
   );
 }
 
@@ -3188,30 +2699,7 @@ function ShopView({ profile }: { profile: UserProfile }) {
     }
   };
 
-  const defaultProducts: ShopProduct[] = [
-    {
-      id: '1',
-      name: 'The 48 Laws of Power',
-      description: 'The definitive guide to understanding power dynamics in any situation. A must-read for strategic thinkers.',
-      price: '₹499',
-      imageUrl: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=800',
-      affiliateUrl: 'https://amazon.in',
-      platform: 'Amazon',
-      category: 'Power'
-    },
-    {
-      id: '2',
-      name: 'Thinking, Fast and Slow',
-      description: 'Understanding the two systems that drive the way we think. Psychological foundation for master strategists.',
-      price: '₹599',
-      imageUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&q=80&w=800',
-      affiliateUrl: 'https://amazon.in',
-      platform: 'Amazon',
-      category: 'Psychology'
-    }
-  ];
-
-  const displayProducts = products.length > 0 ? products : defaultProducts;
+  const displayProducts = products;
 
   if (loading) return <LoadingScreen />;
 

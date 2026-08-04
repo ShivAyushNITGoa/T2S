@@ -2,6 +2,7 @@ export interface JourneyModule {
   id: string;
   day: number;
   title: string;
+  hindiTitle?: string;
   description: string;
   command?: string;
   logic?: string;
@@ -60,18 +61,6 @@ export interface UserProfile {
   dailyReflections?: Record<string, string>;
 }
 
-export interface CommunityPost {
-  id: string;
-  authorId: string;
-  authorName: string;
-  content: string;
-  createdAt: any;
-  likes: number;
-  likedBy?: string[];
-  authorPhotoURL?: string;
-  isPremium?: boolean;
-}
-
 export interface ShopProduct {
   id: string;
   name: string;
@@ -92,4 +81,4 @@ export interface AffiliateStats {
   referralCode: string;
 }
 
-export type TabType = 'journey' | 'archives' | 'library' | 'community' | 'admin' | 'profile' | 'shop' | 'affiliate' | 'leaderboard' | 'mindlab';
+export type TabType = 'journey' | 'archives' | 'library' | 'admin' | 'profile' | 'shop' | 'affiliate' | 'leaderboard' | 'mindlab';

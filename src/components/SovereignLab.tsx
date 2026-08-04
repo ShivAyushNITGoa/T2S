@@ -5,6 +5,7 @@ import {
   Target, AlertTriangle, HelpCircle, Eye
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import AIScenarioSimulator from './AIScenarioSimulator';
 
 interface SovereignLabProps {
   profile: any;
@@ -1032,6 +1033,9 @@ export default function SovereignLab({ profile, onXpEarned }: SovereignLabProps)
             exit={{ opacity: 0, y: -15 }}
             className="space-y-8"
           >
+            {/* Interactive AI Scenario Simulator */}
+            <AIScenarioSimulator onXpEarned={onXpEarned} />
+
             {selectedScenarioIndex === null ? (
               // Scenario list selection
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
