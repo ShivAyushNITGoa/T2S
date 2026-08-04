@@ -232,12 +232,41 @@ export default function GatewayView({
                   SIGN-IN INTERRUPTED / लॉगिन बाधित हुआ
                 </h3>
               </div>
-              <p className="text-sm text-zinc-150 font-bold leading-relaxed">
-                You cancelled the auth window or it was blocked by standard browser popup filters.
-              </p>
-              <p className="text-xs text-zinc-300 font-medium leading-relaxed">
-                यदि आपका ब्राउज़र Google लॉगिन पॉप-अप को ब्लॉक कर रहा है, तो आप नीचे दिए गए **"Direct Redirect"** बटन से सीधे लॉगिन कर सकते हैं। यह बिना पॉप-अप के सुरक्षित रूप से लॉगिन पूरा कर देगा:
-              </p>
+
+              {authError.includes('auth/unauthorized-domain') ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-amber-300 font-bold leading-relaxed">
+                    Firebase Error: Authorized Domain Missing (<code className="bg-black/50 px-2 py-1 rounded text-amber-400">{typeof window !== 'undefined' ? window.location.hostname : 'Vercel Domain'}</code>)
+                  </p>
+                  <p className="text-xs text-zinc-300 font-medium leading-relaxed">
+                    Firebase Authentication blocks sign-ins from domains that are not explicitly authorized. To fix this:
+                  </p>
+                  <ol className="text-xs text-zinc-300 list-decimal list-inside space-y-1 bg-black/40 p-3 rounded-xl border border-white/10 font-mono">
+                    <li>Open <strong>Firebase Console</strong> &gt; Select project <strong>gen-lang-client-0467831205</strong></li>
+                    <li>Go to <strong>Authentication</strong> &gt; <strong>Settings</strong> &gt; <strong>Authorized domains</strong></li>
+                    <li>Click <strong>Add domain</strong> and enter: <code className="text-amber-400 font-bold">{typeof window !== 'undefined' ? window.location.hostname : 'your-app.vercel.app'}</code></li>
+                  </ol>
+                </div>
+              ) : authError === 'auth/popup-closed-by-user' ? (
+                <>
+                  <p className="text-sm text-zinc-150 font-bold leading-relaxed">
+                    You cancelled the auth window or it was blocked by standard browser popup filters.
+                  </p>
+                  <p className="text-xs text-zinc-300 font-medium leading-relaxed">
+                    यदि आपका ब्राउज़र Google लॉगिन पॉप-अप को ब्लॉक कर रहा है, तो आप नीचे दिए गए **"Direct Redirect"** बटन से सीधे लॉगिन कर सकते हैं। यह बिना पॉप-अप के सुरक्षित रूप से लॉगिन पूरा कर देगा:
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-amber-300 font-bold leading-relaxed">
+                    Authentication Error: <span className="font-mono bg-black/50 px-2 py-1 rounded text-white">{authError}</span>
+                  </p>
+                  <p className="text-xs text-zinc-300 font-medium leading-relaxed">
+                    Try using Direct Redirect mode or checking browser console logs for details.
+                  </p>
+                </>
+              )}
+
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 {onLoginRedirect && (
                   <button

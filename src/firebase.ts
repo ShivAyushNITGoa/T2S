@@ -17,11 +17,13 @@ const activeFirebaseConfig = {
 const app = initializeApp(activeFirebaseConfig);
 
 // Initialize Firestore with settings to improve stability in sandboxed environments
+const isIframe = typeof window !== 'undefined' && window.self !== window.top;
+
 let dbInstance;
 try {
-  dbInstance = initializeFirestore(app, {
+  dbInstance = initializeFirestore(app, isIframe ? {
     experimentalForceLongPolling: true,
-  }, activeFirebaseConfig.firestoreDatabaseId);
+  } : {}, activeFirebaseConfig.firestoreDatabaseId);
 } catch (e) {
   console.warn("initializeFirestore failed, falling back to getFirestore:", e);
   dbInstance = getFirestore(app, activeFirebaseConfig.firestoreDatabaseId);
