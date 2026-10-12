@@ -1,0 +1,10 @@
+{
+  "projectId": "talk2society",
+  "appId": "1:1054632782156:web:591add63acb51f213947e9",
+  "apiKey": "AIzaSyA-jkKX1yqnsh-lRslTZpxKKOTpoeYpKAc",
+  "authDomain": "talk2society.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "talk2society.firebasestorage.app",
+  "messagingSenderId": "1054632782156",
+  "measurementId": "G-JGLDQV9TDM"
+}

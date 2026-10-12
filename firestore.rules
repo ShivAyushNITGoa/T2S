@@ -1,0 +1,77 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isAdmin() {
+      return isSignedIn() &&
+        (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+         (request.auth.token.email in ['ashivamone@gmail.com', 'Ashivamone@gmail.com']));
+    }
+
+    match /users/{userId} {
+      allow get, list: if true;
+      allow create, update: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    function isValidPost(data) {
+      return data.keys().hasAll(['authorId', 'authorName', 'content', 'createdAt', 'likes']) &&
+        data.authorId == request.auth.uid &&
+        data.authorName is string && data.authorName.size() <= 100 &&
+        (data.get('authorPhotoURL', null) == null || (data.authorPhotoURL is string && data.authorPhotoURL.size() <= 2000000)) &&
+        data.content is string && data.content.size() <= 5000 &&
+        data.likes is int;
+    }
+
+    match /posts/{postId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isValidPost(request.resource.data);
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn() && (isOwner(resource.data.authorId) || isAdmin());
+    }
+
+    match /journey/{dayId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /archives/{videoId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /library/{bookId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /shop/{productId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /announcements/{announcementId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /test/connection {
+      allow get: if true;
+    }
+  }
+}

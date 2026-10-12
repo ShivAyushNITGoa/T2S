@@ -1,0 +1,66 @@
+{
+  "id": "/",
+  "name": "Talk2Society — Social Reality, Philosophy & 100-Day Consciousness",
+  "short_name": "Talk2Society",
+  "description": "India-centric Social Reality & Life Guidance platform by A. K. Chandradipti. Explore hidden social systems, documentaries, mental models, and a 100-day conscious thinking journey.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "background_color": "#070709",
+  "theme_color": "#070709",
+  "orientation": "any",
+  "lang": "hi-IN",
+  "dir": "ltr",
+  "categories": ["education", "books", "lifestyle", "productivity"],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/Logo-real.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/Logo-real.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/logo512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "100-Day Journey",
+      "short_name": "100 Days",
+      "description": "Open your daily consciousness & discipline protocol",
+      "url": "/?tab=journey",
+      "icons": [{ "src": "/Logo-real.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "The Great Library",
+      "short_name": "Library",
+      "description": "Read the 5 Foundational Manuals & Crucible E-Books",
+      "url": "/?tab=library",
+      "icons": [{ "src": "/Logo-real.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Video Archives",
+      "short_name": "Archives",
+      "description": "Watch investigative documentaries & case files",
+      "url": "/?tab=archives",
+      "icons": [{ "src": "/Logo-real.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}
