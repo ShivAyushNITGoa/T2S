@@ -41,10 +41,10 @@ const GATEWAY_FAQS = [
     aEn: 'Yes, signing in with Google is required to access the platform and unlocks all standard features (100-Day Course, Great Library, Archives, Forum, and Leaderboard), while Premium content is reserved for Sovereign VIP members.',
   },
   {
-    qHi: 'Sovereign VIP Pass (₹299) में क्या मिलता है?',
-    qEn: 'What is included in the Sovereign VIP Pass (₹299)?',
-    aHi: 'Sovereign Pass के साथ आपको सभी प्रीमियम डॉक्यूमेंट्री केस-फाइल्स, A. K. Chandradipti की विशेष पांडुलिपियाँ (Manuscripts) और पूर्ण रणनीतिक संसाधनों का आजीवन (Lifetime) एक्सेस मिलता है।',
-    aEn: 'The Sovereign Pass unlocks lifetime access to all VIP documentary case files, A. K. Chandradipti’s complete manuscripts, and exclusive strategic resources.',
+    qHi: 'Sovereign VIP Pass (₹299 — प्रथम १०० दिन) में क्या मिलता है?',
+    qEn: 'What is included in the Sovereign VIP Pass (₹299 for First 100 Days)?',
+    aHi: 'Sovereign Pass (₹299) के साथ आपको प्रथम १०० दिनों (First 100 Days) के लिए सभी प्रीमियम डॉक्यूमेंट्री केस-फाइल्स, A. K. Chandradipti की विशेष पांडुलिपियाँ (Manuscripts) और पूर्ण रणनीतिक संसाधनों का एक्सेस मिलता है।',
+    aEn: 'The Sovereign Pass (₹299) unlocks full access for the first 100 days to all VIP documentary case files, A. K. Chandradipti’s complete manuscripts, and exclusive strategic resources.',
   },
 ];
 

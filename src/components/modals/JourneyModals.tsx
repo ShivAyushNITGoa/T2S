@@ -5,6 +5,7 @@ import { getLocalDateString, isCompletedOnDate } from '../../utils/dateUtils';
 import { getInAppVideoEmbedInfo } from '../../utils/mediaUtils';
 import { DayCountdownTimer } from '../common/DayCountdownTimer';
 import { useAppContext } from '../../context/AppContext';
+import { useLanguage } from '../../context/LanguageContext';
 
 export const JourneyModuleDetailModal: React.FC = () => {
   const {
@@ -15,6 +16,7 @@ export const JourneyModuleDetailModal: React.FC = () => {
     profile,
     completeDay,
   } = useAppContext();
+  const { t } = useLanguage();
 
   if (!module) return null;
 
@@ -59,7 +61,7 @@ export const JourneyModuleDetailModal: React.FC = () => {
             className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 active:scale-95 rounded-xl border border-white/10 text-xs text-zinc-300 hover:text-white font-semibold transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5 text-amber-400" />
-            <span>Back (वापस)</span>
+            <span>{t('वापस (Back)', 'Back')}</span>
           </button>
           <button
             onClick={closeJourneyModuleModal}
@@ -93,7 +95,10 @@ export const JourneyModuleDetailModal: React.FC = () => {
                 SOVEREIGN PREMIUM DAY LOCKED
               </span>
               <p className="text-xs text-zinc-300 max-w-md mx-auto leading-relaxed">
-                This protocol is classified exclusively for Sovereign VIP members. Upgrade your account to unlock this day.
+                {t(
+                  'यह विशेष अध्याय केवल Sovereign VIP सदस्यों के लिए आरक्षित है। इसे अनलॉक करने के लिए अपना अकाउंट अपग्रेड करें।',
+                  'This protocol is classified exclusively for Sovereign VIP members. Upgrade your account to unlock this day.'
+                )}
               </p>
               <button
                 onClick={() => {
@@ -102,7 +107,7 @@ export const JourneyModuleDetailModal: React.FC = () => {
                 }}
                 className="px-6 py-3 bg-gradient-to-r from-amber-500 to-yellow-500 text-black font-black uppercase tracking-wider text-xs rounded-xl shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:scale-105 transition-all cursor-pointer font-mono"
               >
-                Unlock Sovereign VIP / अपग्रेड करें
+                {t('VIP अनलॉक करें (Unlock VIP)', 'Unlock Sovereign VIP')}
               </button>
             </div>
           ) : isDayLocked ? (
@@ -116,8 +121,14 @@ export const JourneyModuleDetailModal: React.FC = () => {
                 </span>
                 <p className="text-xs sm:text-sm text-zinc-300 max-w-md mx-auto leading-relaxed">
                   {completedToday
-                    ? 'आप प्रतिदिन केवल १ अध्याय पूरा कर सकते हैं। अगले दिन का कार्य (Task) रात 12:00 AM IST पर अनलॉक होगा।'
-                    : `दिन ${module.day} का कार्य देखने के लिए पहले पिछले सभी दिन क्रमबद्ध रूप से पूरे करें।`}
+                    ? t(
+                        'आप प्रतिदिन केवल १ अध्याय पूरा कर सकते हैं। अगले दिन का कार्य (Task) रात 12:00 AM IST पर अनलॉक होगा।',
+                        'You can complete only 1 day per calendar day. The next protocol task unlocks at 12:00 AM IST.'
+                      )
+                    : t(
+                        `दिन ${module.day} का कार्य देखने के लिए पहले पिछले सभी दिन क्रमबद्ध रूप से पूरे करें।`,
+                        `Complete all previous days sequentially to unlock Day ${module.day}'s task.`
+                      )}
                 </p>
               </div>
               {completedToday && (
@@ -129,7 +140,7 @@ export const JourneyModuleDetailModal: React.FC = () => {
                 onClick={closeJourneyModuleModal}
                 className="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 text-xs font-mono font-bold uppercase tracking-wider rounded-xl cursor-pointer"
               >
-                Close / बंद करें
+                {t('बंद करें (Close)', 'Close')}
               </button>
             </div>
           ) : (

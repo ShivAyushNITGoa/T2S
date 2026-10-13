@@ -14,9 +14,11 @@ import {
 import { db } from '../config/firebase';
 import { Card, VipSectionLockedView } from '../components/common/UiPrimitives';
 import { useAppContext } from '../context/AppContext';
+import { useLanguage } from '../context/LanguageContext';
 
 export const AffiliateView: React.FC = () => {
   const { profile, isSectionVipGated, openAscensionModal, showToast } = useAppContext();
+  const { t } = useLanguage();
 
   const [referralCount, setReferralCount] = useState(0);
   const [copied, setCopied] = useState(false);
@@ -57,8 +59,11 @@ export const AffiliateView: React.FC = () => {
     navigator.clipboard.writeText(referralUrl);
     setCopied(true);
     showToast({
-      title: 'रेफ़रल लिंक कॉपी हो गया (Referral Link Copied)',
-      message: 'अपने मित्रों और साथियों के साथ साझा करें।',
+      title: t('रेफ़रल लिंक कॉपी हो गया', 'Referral Link Copied'),
+      message: t(
+        'अपने मित्रों और साथियों के साथ साझा करें।',
+        'Share your invite link with fellow practitioners.'
+      ),
       type: 'success',
     });
     setTimeout(() => setCopied(false), 2500);
@@ -83,38 +88,46 @@ export const AffiliateView: React.FC = () => {
         <div className="absolute -top-24 -right-24 w-72 h-72 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-mono uppercase tracking-widest font-bold">
           <Share2 className="w-3.5 h-3.5" />
-          <span>SOVEREIGN PARTNER NETWORK // सहयोगी मंच</span>
+          <span>{t('सहयोगी मंच // SOVEREIGN PARTNER NETWORK', 'SOVEREIGN PARTNER NETWORK')}</span>
         </div>
         <h1 className="text-2xl sm:text-4xl font-display font-black text-white uppercase tracking-tight">
-          Sovereign <span className="text-amber-400">Partner</span> Portal
+          {t('संप्रभु सहयोगी', 'Sovereign')}{' '}
+          <span className="text-amber-400">{t('पोर्टल (Partner Portal)', 'Partner Portal')}</span>
         </h1>
         <p className="text-xs sm:text-sm text-zinc-300 max-w-2xl leading-relaxed">
-          जागरूक युवाओं और गंभीर साधकों को <strong>Talk2Society Crucible</strong> से जोड़ें। आपके रेफ़रल लिंक से जुड़ने वाले प्रत्येक साधक का रिकॉर्ड आपके खाते से जुड़ता है।
+          {t(
+            'जागरूक युवाओं और गंभीर साधकों को Talk2Society Crucible से जोड़ें। आपके रेफ़रल लिंक से जुड़ने वाले प्रत्येक साधक का रिकॉर्ड आपके खाते से जुड़ता है।',
+            'Invite serious seekers and disciplined thinkers to the Talk2Society Crucible. Every practitioner who joins via your referral link is credited to your account.'
+          )}
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="space-y-1">
           <div className="flex items-center justify-between text-zinc-400 text-xs font-mono">
-            <span>YOUR PARTNER CODE</span>
+            <span>{t('आपका पार्टनर कोड', 'YOUR PARTNER CODE')}</span>
             <Sparkles className="w-4 h-4 text-amber-400" />
           </div>
           <div className="text-2xl font-mono font-black text-amber-400">{referralCode}</div>
-          <p className="text-[11px] text-zinc-500">Unique Practitioner Identifier</p>
+          <p className="text-[11px] text-zinc-500">
+            {t('विशिष्ट साधक पहचान कोड', 'Unique Practitioner Identifier')}
+          </p>
         </Card>
 
         <Card className="space-y-1">
           <div className="flex items-center justify-between text-zinc-400 text-xs font-mono">
-            <span>REFERRED PRACTITIONERS</span>
+            <span>{t('जुड़े हुए साधक', 'REFERRED PRACTITIONERS')}</span>
             <Users className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="text-2xl font-mono font-black text-white">{referralCount}</div>
-          <p className="text-[11px] text-zinc-500">Joined via your invite link</p>
+          <p className="text-[11px] text-zinc-500">
+            {t('आपके लिंक से जुड़े सदस्य', 'Joined via your invite link')}
+          </p>
         </Card>
 
         <Card className="space-y-1">
           <div className="flex items-center justify-between text-zinc-400 text-xs font-mono">
-            <span>PARTNER TIER</span>
+            <span>{t('सहयोगी स्तर', 'PARTNER TIER')}</span>
             <Award className="w-4 h-4 text-purple-400" />
           </div>
           <div className="text-2xl font-mono font-black text-white">
@@ -124,17 +137,22 @@ export const AffiliateView: React.FC = () => {
                 ? 'Emissary'
                 : 'Initiate'}
           </div>
-          <p className="text-[11px] text-zinc-500">30% Sovereign Pass Commission Eligible</p>
+          <p className="text-[11px] text-zinc-500">
+            {t('30% Sovereign Pass कमीशन पात्र', '30% Sovereign Pass Commission Eligible')}
+          </p>
         </Card>
       </div>
 
       <Card className="space-y-5">
         <div>
           <h3 className="text-base font-bold text-white">
-            आपका व्यक्तिगत आमंत्रण लिंक (Your Invite Link)
+            {t('आपका व्यक्तिगत आमंत्रण लिंक (Your Invite Link)', 'Your Personal Invite Link')}
           </h3>
           <p className="text-xs text-zinc-400 mt-0.5">
-            इस लिंक को कॉपी करें या सीधे WhatsApp / Telegram पर साझा करें:
+            {t(
+              'इस लिंक को कॉपी करें या सीधे WhatsApp / Telegram पर साझा करें:',
+              'Copy this link or share it directly on WhatsApp or Telegram:'
+            )}
           </p>
         </div>
 
@@ -149,14 +167,14 @@ export const AffiliateView: React.FC = () => {
             className="px-5 py-3 bg-amber-500 hover:bg-amber-400 text-black font-mono font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all shrink-0"
           >
             {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-            <span>{copied ? 'Copied!' : 'Copy Link'}</span>
+            <span>{copied ? t('कॉपी हो गया!', 'Copied!') : t('लिंक कॉपी करें', 'Copy Link')}</span>
           </button>
           <button
             onClick={shareOnWhatsApp}
             className="px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-mono font-bold text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all shrink-0"
           >
             <Send className="w-4 h-4" />
-            <span>WhatsApp Share</span>
+            <span>{t('WhatsApp पर साझा करें', 'WhatsApp Share')}</span>
           </button>
         </div>
       </Card>

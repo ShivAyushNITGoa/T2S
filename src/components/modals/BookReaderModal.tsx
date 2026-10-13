@@ -7,13 +7,13 @@ import {
   List,
   Maximize2,
   Minimize2,
-  ArrowLeft,
   X,
 } from 'lucide-react';
 import { ContentModal, ViewLoader } from '../common/UiPrimitives';
 import { BuiltInBookReader } from './BuiltInBookReader';
 import { getInAppPdfViewerUrl } from '../../utils/mediaUtils';
 import { useAppContext } from '../../context/AppContext';
+import { useLanguage } from '../../context/LanguageContext';
 
 export const BookReaderModal: React.FC = () => {
   const {
@@ -22,6 +22,7 @@ export const BookReaderModal: React.FC = () => {
     openAscensionModal,
     isUserVip,
   } = useAppContext();
+  const { t } = useLanguage();
 
   const [viewMode, setViewMode] = useState<'pdf' | 'chapters'>('pdf');
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -96,34 +97,13 @@ export const BookReaderModal: React.FC = () => {
             <div className="text-center p-8">
               <div className="w-10 h-10 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
               <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">
-                Loading Protected In-App PDF Reader...
+                {t(
+                  'इन-ऐप सुरक्षित PDF रीडर लोड हो रहा है...',
+                  'Loading Protected In-App PDF Reader...'
+                )}
               </p>
             </div>
           </div>
-
-          {/* Floating In-App Fullscreen Toggle inside PDF Viewport */}
-          <button
-            type="button"
-            onClick={toggleInAppFullScreen}
-            className="absolute top-3 left-3 z-30 px-3.5 py-2 rounded-xl bg-black/85 hover:bg-amber-500 text-amber-400 hover:text-black border border-amber-500/40 text-xs font-mono font-bold flex items-center gap-2 shadow-xl transition-all cursor-pointer"
-            title={
-              fullScreenActive
-                ? 'Exit Full Screen (सामान्य दृश्य)'
-                : 'Full Screen Inside App (पूर्ण स्क्रीन)'
-            }
-          >
-            {fullScreenActive ? (
-              <>
-                <Minimize2 className="w-3.5 h-3.5" />
-                <span>Exit Full Screen (सामान्य दृश्य)</span>
-              </>
-            ) : (
-              <>
-                <Maximize2 className="w-3.5 h-3.5" />
-                <span>Full Screen (पूर्ण स्क्रीन)</span>
-              </>
-            )}
-          </button>
 
           <iframe
             key={inAppPdfUrl}
@@ -158,7 +138,10 @@ export const BookReaderModal: React.FC = () => {
                 {selectedBook.description || selectedBook.excerpt}
               </p>
               <div className="p-4 bg-white/5 border border-white/10 rounded-xl text-xs text-gray-300 font-mono">
-                यह पुस्तक इन-ऐप सुरक्षित रीडर में उपलब्ध है। (Protected In-App Manuscript)
+                {t(
+                  'यह पुस्तक इन-ऐप सुरक्षित रीडर में उपलब्ध है।',
+                  'This manuscript is available in the protected in-app reader.'
+                )}
               </div>
             </div>
           </div>
@@ -186,7 +169,10 @@ export const BookReaderModal: React.FC = () => {
               {selectedBook.title}
             </h3>
             <p className="text-xs text-gray-400 max-w-md mx-auto">
-              This strategic manuscript is restricted to Sovereign Tier members. Upgrade your account to unlock full in-app manuscript reading.
+              {t(
+                'यह रणनीतिक पांडुलिपि केवल Sovereign VIP सदस्यों के लिए आरक्षित है। पढ़ने के लिए अपना अकाउंट अपग्रेड करें।',
+                'This strategic manuscript is restricted to Sovereign Tier members. Upgrade your account to unlock full in-app manuscript reading.'
+              )}
             </p>
           </div>
           <button
@@ -196,7 +182,7 @@ export const BookReaderModal: React.FC = () => {
             }}
             className="px-6 py-3 bg-gradient-to-r from-amber-500 to-yellow-500 text-black font-black uppercase tracking-wider text-xs rounded-xl shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:scale-105 transition-all cursor-pointer font-mono"
           >
-            Unlock Full Library Access / अपग्रेड करें
+            {t('पुस्तकालय अनलॉक करें / अपग्रेड करें', 'Unlock Full Library Access')}
           </button>
         </div>
       ) : (
@@ -210,22 +196,15 @@ export const BookReaderModal: React.FC = () => {
           onContextMenu={(e) => e.preventDefault()}
         >
           {isFullScreen ? (
-            /* Slim In-App Full Screen Top Bar */
+            /* Slim In-App Full Screen Top Bar — with ONLY ONE Full Screen exit toggle button */
             <div className="h-14 px-4 sm:px-6 bg-[#07080c] border-b border-white/10 flex items-center justify-between gap-3 shrink-0">
               <div className="flex items-center gap-3 min-w-0">
-                <button
-                  type="button"
-                  onClick={toggleInAppFullScreen}
-                  className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-zinc-200 flex items-center gap-1.5 cursor-pointer shrink-0"
-                >
-                  <ArrowLeft className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Exit Full Screen (वापस)</span>
-                </button>
                 <span className="text-xs sm:text-sm font-bold text-white truncate">
                   {selectedBook.title}
                 </span>
                 <span className="hidden md:inline-flex px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[9px] font-mono font-bold items-center gap-1 shrink-0">
-                  <Shield className="w-2.5 h-2.5" /> In-App Full Screen (No Download)
+                  <Shield className="w-2.5 h-2.5" />{' '}
+                  {t('इन-ऐप पूर्ण स्क्रीन (नो डाउनलोड)', 'In-App Full Screen (No Download)')}
                 </span>
               </div>
 
@@ -252,32 +231,33 @@ export const BookReaderModal: React.FC = () => {
                           : 'text-zinc-400 hover:text-white'
                       }`}
                     >
-                      <List className="w-3 h-3" /> Chapters
+                      <List className="w-3 h-3" /> {t('अध्याय', 'Chapters')}
                     </button>
                   </div>
                 )}
 
+                {/* ONLY ONE Full Screen Toggle Button */}
                 <button
                   type="button"
                   onClick={toggleInAppFullScreen}
-                  className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500 text-amber-300 hover:text-black border border-amber-500/30 text-xs font-mono font-bold flex items-center gap-1.5 cursor-pointer transition-all"
+                  className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-mono font-extrabold flex items-center gap-1.5 cursor-pointer transition-all shadow-md"
                 >
                   <Minimize2 className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Minimize</span>
+                  <span>{t('पूर्ण स्क्रीन बंद करें', 'Exit Full Screen')}</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleCloseReader}
                   className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-400 hover:text-white cursor-pointer"
-                  title="Close Reader"
+                  title={t('बंद करें', 'Close Reader')}
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
           ) : (
-            /* Standard Modal Header */
+            /* Standard Modal Header — with ONLY ONE Full Screen Button */
             <div className="p-5 sm:p-6 border-b border-white/5 bg-black/40 shrink-0 flex flex-col md:flex-row justify-between gap-4 items-start md:items-center">
               <div className="flex gap-5 items-start">
                 <div className="w-16 h-24 bg-neutral-900 border border-white/5 rounded-xl flex items-center justify-center shadow-2xl shrink-0 overflow-hidden">
@@ -298,7 +278,8 @@ export const BookReaderModal: React.FC = () => {
                       {selectedBook.category}
                     </span>
                     <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[9px] font-mono font-bold flex items-center gap-1">
-                      <Shield className="w-2.5 h-2.5" /> In-App Protected Reader (No Download)
+                      <Shield className="w-2.5 h-2.5" />{' '}
+                      {t('इन-ऐप सुरक्षित रीडर (नो डाउनलोड)', 'In-App Protected Reader (No Download)')}
                     </span>
                   </div>
                   <h2 className="text-lg sm:text-2xl font-black text-white italic tracking-tight leading-snug">
@@ -325,7 +306,7 @@ export const BookReaderModal: React.FC = () => {
                           : 'text-zinc-400 hover:text-white'
                       }`}
                     >
-                      <FileText className="w-3.5 h-3.5" /> PDF View
+                      <FileText className="w-3.5 h-3.5" /> {t('PDF दृश्य', 'PDF View')}
                     </button>
                     <button
                       type="button"
@@ -336,18 +317,20 @@ export const BookReaderModal: React.FC = () => {
                           : 'text-zinc-400 hover:text-white'
                       }`}
                     >
-                      <List className="w-3.5 h-3.5" /> Interactive Chapters
+                      <List className="w-3.5 h-3.5" />{' '}
+                      {t('इंटरैक्टिव अध्याय', 'Interactive Chapters')}
                     </button>
                   </div>
                 )}
 
+                {/* ONLY ONE Full Screen Button */}
                 <button
                   type="button"
                   onClick={toggleInAppFullScreen}
                   className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs font-mono flex items-center gap-2 cursor-pointer transition-all shadow-lg shadow-amber-500/20"
                 >
                   <Maximize2 className="w-3.5 h-3.5" />
-                  <span>Full Screen (पूर्ण स्क्रीन)</span>
+                  <span>{t('पूर्ण स्क्रीन (Full Screen)', 'Full Screen')}</span>
                 </button>
               </div>
             </div>

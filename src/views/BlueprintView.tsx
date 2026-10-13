@@ -33,6 +33,7 @@ import {
 } from './blueprint/BlueprintCrucibleSections';
 import { VipSectionLockedView } from '../components/common/UiPrimitives';
 import { useAppContext } from '../context/AppContext';
+import { useLanguage } from '../context/LanguageContext';
 import { useSpeechSynthesis } from '../utils/speechUtils';
 
 const STICK_FIGURE_SCENARIOS = [
@@ -160,6 +161,7 @@ export const BlueprintView: React.FC = () => {
     openBookModal,
     claimSovereignXp,
   } = useAppContext();
+  const { t } = useLanguage();
 
   const [activeSubSection, setActiveSubSection] = useState<
     | 'overview'
@@ -306,50 +308,54 @@ export const BlueprintView: React.FC = () => {
       {/* Navigation Sub-Tabs Bar */}
       <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto pb-2 scrollbar-hide border-b border-zinc-800">
         {[
-          { id: 'overview', label: 'मूल दिशा (Core Engine)', icon: Shield },
+          {
+            id: 'overview',
+            label: t('मूल दिशा (Core Engine)', 'Core Engine'),
+            icon: Shield,
+          },
           {
             id: 'reality_audit',
-            label: 'कम्युनिटी ऑडिट (3 अंतर्विरोध)',
+            label: t('कम्युनिटी ऑडिट (3 अंतर्विरोध)', 'Reality Audit (3 Paradoxes)'),
             icon: AlertTriangle,
           },
           {
             id: 'no_guru_protocol',
-            label: 'नो-गुरु मर्यादा (5 नियम)',
+            label: t('नो-गुरु मर्यादा (5 नियम)', 'No-Guru Protocol (5 Rules)'),
             icon: Flame,
           },
           {
             id: 'weekly_calendar',
-            label: 'साप्ताहिक टाइम-टेबल व ड्रिल्स',
+            label: t('साप्ताहिक टाइम-टेबल व ड्रिल्स', 'Weekly Calendar & Drills'),
             icon: Calendar,
           },
           {
             id: 'manuals',
-            label: 'मूल ग्रंथ व 4 ई-बुक्स',
+            label: t('मूल ग्रंथ व 4 ई-बुक्स', 'Foundational Manuals & E-Books'),
             icon: BookOpen,
           },
           {
             id: 'stickfigures',
-            label: 'दृश्य चित्र व मैप्स (Visuals)',
+            label: t('दृश्य चित्र व मैप्स (Visuals)', 'Visual Systemic Maps'),
             icon: Eye,
           },
           {
             id: 'thinking_model',
-            label: 'सोच के 8 स्तर (Thinking Model)',
+            label: t('सोच के 8 स्तर (Thinking Model)', '8 Levels of Thinking'),
             icon: Layers,
           },
           {
             id: 'competitors',
-            label: 'अन्य चैनलों से तुलना (Benchmark)',
+            label: t('अन्य चैनलों से तुलना (Benchmark)', 'Channel Benchmark'),
             icon: Users,
           },
           {
             id: 'authority',
-            label: 'तर्क व प्रमाण मॉडल (Authority)',
+            label: t('तर्क व प्रमाण मॉडल (Authority)', 'Authority Hierarchy'),
             icon: Award,
           },
           {
             id: 'guidance_rules',
-            label: 'मार्गदर्शन बनाम खोखला मोटिवेशन',
+            label: t('मार्गदर्शन बनाम खोखला मोटिवेशन', 'Guidance vs Self-Help'),
             icon: CheckCircle2,
           },
         ].map((tab) => {

@@ -110,15 +110,15 @@ export const AscensionModal: React.FC = () => {
 
         <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl flex justify-between items-center text-left">
           <div>
-            <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest font-bold">
-              {t('आजीवन सदस्यता', 'Lifetime Membership')}
+            <div className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest font-bold">
+              {t('प्रथम १०० दिनों की सदस्यता', 'First 100 Days Membership')}
             </div>
             <div className="text-white font-black text-sm uppercase">
-              {t('संप्रभु पास (Sovereign Pass)', 'Sovereign Pass / संप्रभु पास')}
+              {t('संप्रभु पास (100-Day Sovereign Pass)', '100-Day Sovereign Pass')}
             </div>
             <div className="text-[9px] text-amber-500 font-mono mt-0.5 uppercase tracking-wider font-extrabold flex items-center gap-1">
-              <span className="w-1 h-1 bg-amber-500 rounded-full animate-ping" /> First 100 Users
-              Special Offer
+              <span className="w-1 h-1 bg-amber-500 rounded-full animate-ping" />{' '}
+              {t('प्रथम १०० दिनों के लिए विशेष ऑफर', 'Special Offer for First 100 Days')}
             </div>
           </div>
           <div className="text-right">
@@ -126,8 +126,8 @@ export const AscensionModal: React.FC = () => {
               <span className="line-through text-zinc-600 text-xs font-bold">Rs. 2,999</span>
               <span className="text-2xl font-display font-black text-amber-500">Rs. 299</span>
             </div>
-            <div className="text-[9px] font-mono text-zinc-500 font-black uppercase">
-              {t('एक बार / सदा के लिए', 'One-Time / Lifetime')}
+            <div className="text-[9px] font-mono text-amber-400 font-black uppercase">
+              {t('प्रथम १०० दिनों के लिए', 'For First 100 Days')}
             </div>
           </div>
         </div>

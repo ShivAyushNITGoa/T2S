@@ -28,10 +28,12 @@ import {
   VipSectionLockedView,
 } from '../components/common/UiPrimitives';
 import { useAppContext } from '../context/AppContext';
+import { useLanguage } from '../context/LanguageContext';
 
 export const ShopView: React.FC = () => {
   const { isSectionVipGated, openAscensionModal, isUserVip, isCurrentUserAdmin } =
     useAppContext();
+  const { t } = useLanguage();
 
   const [products, setProducts] = useState<ShopProduct[]>(() => {
     try {
@@ -144,15 +146,23 @@ export const ShopView: React.FC = () => {
     <div className="space-y-16 pb-20">
       <div className="max-w-2xl space-y-4">
         <h1 className="text-4xl md:text-6xl font-display font-black text-white tracking-tight uppercase">
-          Strategic <span className="text-gray-500">Shop</span>
+          {t('रणनीतिक', 'Strategic')}{' '}
+          <span className="text-gray-500">{t('दुकान (Shop)', 'Shop')}</span>
         </h1>
         <p className="text-gray-400 text-base md:text-xl leading-relaxed font-medium">
-          Curated resources for your personal growth. We recommend essential tools from trusted external platforms.
-          (आपके विकास के लिए बेहतरीन संसाधन)
+          {t(
+            'आपके व्यक्तिगत विकास के लिए चुने गए श्रेष्ठ संसाधन। हम विश्वसनीय प्लेटफॉर्म्स से आवश्यक उपकरण सुझाते हैं।',
+            'Curated resources for your personal growth. We recommend essential tools from trusted external platforms.'
+          )}
         </p>
         <div className="flex items-center gap-2 text-[10px] text-amber-500/60 font-bold uppercase tracking-widest bg-amber-500/5 border border-amber-500/10 w-fit px-3 py-1 rounded-full">
           <ExternalLink size={10} />
-          <span>Product links will redirect to respective stores</span>
+          <span>
+            {t(
+              'प्रोडक्ट लिंक संबंधित स्टोर पर खुलेंगे',
+              'Product links will redirect to respective stores'
+            )}
+          </span>
         </div>
       </div>
 

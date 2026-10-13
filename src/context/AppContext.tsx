@@ -1719,6 +1719,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         type: 'success',
       });
 
+      if ([7, 21, 50, 100].includes(day) || [7, 21, 50, 100].includes(updatedCompleted.length)) {
+        setShowCertificateModal(true);
+      }
+
       await upsertUserAccount(optimisticProfile);
     },
     [
@@ -1730,6 +1734,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       handleLogin,
       showToast,
       upsertUserAccount,
+      setShowCertificateModal,
     ]
   );
 

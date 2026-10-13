@@ -30,10 +30,12 @@ import { getRankFromXP, STORAGE_KEYS } from '../config/constants';
 import { Card, StatCard } from '../components/common/UiPrimitives';
 import { LeaderboardView } from './LeaderboardView';
 import { useAppContext } from '../context/AppContext';
+import { useLanguage } from '../context/LanguageContext';
 import { usePwaInstall } from '../utils/pwaInstall';
 
 const AndroidInstallCard: React.FC = () => {
   const { triggerInstall } = usePwaInstall();
+  const { t } = useLanguage();
   const [showManualGuide, setShowManualGuide] = useState(false);
 
   const handleInstallClick = async () => {
@@ -55,10 +57,13 @@ const AndroidInstallCard: React.FC = () => {
               <span>Android &amp; iOS Native App Installer</span>
             </div>
             <h4 className="text-white text-lg font-black uppercase tracking-tight">
-              Talk2Society मोबाइल ऐप इनस्टॉलर
+              {t('Talk2Society मोबाइल ऐप इनस्टॉलर', 'Talk2Society Mobile & Desktop App')}
             </h4>
             <p className="text-xs text-zinc-300 max-w-xl mt-1 leading-relaxed">
-              Talk2Society ऐप को सीधे अपने फ़ोन में इंस्टॉल करें! इससे आपको मिलेगा तेज एक्सेस, बिना इंटरनेट रुकावट अध्ययन और मोबाइल स्क्रीन के अनुकूल शानदार अनुभव।
+              {t(
+                'Talk2Society ऐप को सीधे अपने फ़ोन में इंस्टॉल करें! इससे आपको मिलेगा तेज एक्सेस, बिना इंटरनेट रुकावट अध्ययन और मोबाइल स्क्रीन के अनुकूल शानदार अनुभव।',
+                'Install the Talk2Society app directly on your phone or desktop for fast access, distraction-free study, and a native experience.'
+              )}
             </p>
           </div>
         </div>
@@ -67,7 +72,7 @@ const AndroidInstallCard: React.FC = () => {
           className="w-full md:w-auto px-6 py-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:scale-[1.02] text-black font-black uppercase tracking-widest text-[10px] rounded-xl shadow-[0_0_20px_rgba(245,158,11,0.2)] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
         >
           <Download className="w-4 h-4" />
-          <span>ऐप इनस्टॉल करें (Install Mobile / Desktop App)</span>
+          <span>{t('ऐप इनस्टॉल करें (Install App)', 'Install Mobile / Desktop App')}</span>
         </button>
       </div>
 
@@ -136,6 +141,7 @@ export const ProfileView: React.FC = () => {
     setShowJournalModal,
     showToast,
   } = useAppContext();
+  const { t } = useLanguage();
 
   const [isEditing, setIsEditing] = useState(false);
   const [newName, setNewName] = useState(profile?.displayName || 'Anonymous User');
@@ -373,27 +379,31 @@ export const ProfileView: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={<Trophy className="text-white" />}
-          label="Total Points"
-          secondaryLabel="कुल अंक"
+          label={t('कुल अंक', 'Total Points')}
+          secondaryLabel={t('Total Points', 'कुल अंक')}
           value={(profile.xp ?? 0).toLocaleString()}
         />
         <StatCard
           icon={<Flame className="text-white" />}
-          label="Daily Streak"
-          secondaryLabel="दैनिक सिलसिला"
-          value={`${profile.streak ?? 1} Days`}
+          label={t('दैनिक सिलसिला', 'Daily Streak')}
+          secondaryLabel={t('Daily Streak', 'दैनिक सिलसिला')}
+          value={`${profile.streak ?? 1} ${t('दिन', 'Days')}`}
         />
         <StatCard
           icon={<Target className="text-white" />}
-          label="Your Rank"
-          secondaryLabel={rankInfo.name}
+          label={t('आपकी रैंक', 'Your Rank')}
+          secondaryLabel={`${rankInfo.hindiName} (${rankInfo.name})`}
           value={`#${rank || '...'}`}
         />
         <StatCard
           icon={<Shield className="text-white" />}
-          label="Member Status"
-          secondaryLabel="सदस्यता स्तर"
-          value={profile.isStrategist || profile.isAdmin ? 'Special' : 'Standard'}
+          label={t('सदस्यता स्तर', 'Member Status')}
+          secondaryLabel={t('Member Status', 'सदस्यता स्तर')}
+          value={
+            profile.isStrategist || profile.isAdmin
+              ? t('विशेष (Special)', 'Special')
+              : t('सामान्य (Standard)', 'Standard')
+          }
         />
       </div>
 
@@ -403,7 +413,12 @@ export const ProfileView: React.FC = () => {
           className="px-4 py-2.5 bg-gradient-to-r from-amber-500/15 via-zinc-900 to-amber-500/10 border border-amber-500/30 hover:border-amber-500/50 rounded-2xl text-xs font-mono font-bold text-amber-400 flex items-center gap-2 transition-all cursor-pointer shadow-md"
         >
           <Award className="w-4 h-4 text-amber-400" />
-          <span>संप्रभुता प्रमाण पत्र देखें (Milestone Certificate)</span>
+          <span>
+            {t(
+              'संप्रभुता प्रमाण पत्र (7, 21, 50, 100 दिन)',
+              'Sovereign Certificate (7, 21, 50, 100 Days)'
+            )}
+          </span>
         </button>
 
         <button
@@ -412,7 +427,10 @@ export const ProfileView: React.FC = () => {
         >
           <FileText className="w-4 h-4 text-amber-400" />
           <span>
-            दैनिक चिंतन डायरी ({Object.keys(profile.dailyReflections || {}).length} प्रविष्टियां)
+            {t(
+              `दैनिक चिंतन डायरी व PDF (${Object.keys(profile.dailyReflections || {}).length} प्रविष्टियां)`,
+              `Wisdom Log & PDF Export (${Object.keys(profile.dailyReflections || {}).length} Entries)`
+            )}
           </span>
         </button>
       </div>
@@ -427,15 +445,16 @@ export const ProfileView: React.FC = () => {
                 </div>
                 <div className="flex-1 text-center md:text-left space-y-2">
                   <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-500/20 border border-amber-400/30 text-amber-300 rounded-full text-[9px] font-mono font-black uppercase tracking-widest">
-                    ⏱️ PAYMENT VERIFICATION PENDING / सत्यापन लंबित है
+                    ⏱️ {t('भुगतान सत्यापन लंबित है', 'PAYMENT VERIFICATION PENDING')}
                   </div>
                   <h2 className="text-3xl font-display font-black text-white italic tracking-tighter uppercase leading-none pt-1">
-                    Ledger Update in Progress
+                    {t('सत्यापन प्रगति पर है', 'Ledger Update in Progress')}
                   </h2>
                   <p className="text-zinc-400 text-sm font-medium leading-relaxed max-w-xl">
-                    व्यवस्थापक (<strong className="text-amber-400">A. K. Chandradipti</strong>)
-                    आपके भुगतान सत्यापन का मिलान कर रहे हैं। आपके अनुरोध की समीक्षा पूर्ण होने पर, आपकी सदस्यता स्वचालित रूप से{' '}
-                    <strong className="text-white">Special Strategist (संप्रभु)</strong> स्तर पर उन्नत कर दी जाएगी।
+                    {t(
+                      'व्यवस्थापक (A. K. Chandradipti) आपके भुगतान सत्यापन का मिलान कर रहे हैं। समीक्षा पूर्ण होने पर आपकी सदस्यता स्वचालित रूप से Special Strategist स्तर पर उन्नत कर दी जाएगी।',
+                      'The Administrator (A. K. Chandradipti) is verifying your payment. Once approved, your account will be upgraded to Special Strategist status.'
+                    )}
                   </p>
                 </div>
               </div>
@@ -446,22 +465,28 @@ export const ProfileView: React.FC = () => {
                 </div>
                 <div className="flex-1 text-center md:text-left space-y-2">
                   <h2 className="text-3xl font-black text-white italic tracking-tighter uppercase">
-                    Join Special Group / विशेष सदस्य बनें
+                    {t('विशेष सदस्य बनें (First 100 Days)', 'Join Special Group (First 100 Days)')}
                   </h2>
-                  <p className="text-gray-500 text-sm font-medium leading-relaxed max-w-xl">
-                    Unlock the exclusive full potential (
-                    <span className="line-through">Rs. 2,999</span>{' '}
-                    <strong className="text-amber-400 font-bold">Rs. 299</strong> only for the
-                    first 100 users!). Access all books, video breakdowns, and special training modules.
+                  <p className="text-gray-400 text-sm font-medium leading-relaxed max-w-xl">
+                    {t(
+                      'प्रथम १०० दिनों (First 100 Days) के लिए सभी प्रीमियम किताबें, वीडियो डॉक्यूमेंट्री और विशेष प्रशिक्षण मॉड्यूल अनलॉक करें — मात्र ',
+                      'Unlock full premium access for the First 100 Days to all books, video breakdowns, and special training modules — only '
+                    )}
+                    <span className="line-through text-gray-500">Rs. 2,999</span>{' '}
+                    <strong className="text-amber-400 font-bold">Rs. 299</strong>{' '}
+                    {t('(प्रथम १०० दिनों के लिए)!', '(for the first 100 days)!')}
                   </p>
                   <div className="pt-4 flex flex-wrap gap-4 justify-center md:justify-start">
                     <button
                       onClick={openAscensionModal}
                       className="px-8 py-3 bg-white text-black text-[10px] font-black uppercase tracking-[0.3em] rounded-xl hover:bg-gray-200 transition-all shadow-xl flex flex-col items-center cursor-pointer font-bold"
                     >
-                      <span>Unlock Special Access</span>
-                      <span className="text-[8px] normal-case tracking-normal opacity-60">
-                        Rs. 299 (<s>Rs. 2,999</s>) • 1st 100 users offer
+                      <span>{t('विशेष एक्सेस अनलॉक करें', 'Unlock Special Access')}</span>
+                      <span className="text-[8px] normal-case tracking-normal opacity-75">
+                        {t(
+                          'Rs. 299 (Rs. 2,999) • प्रथम १०० दिनों के लिए',
+                          'Rs. 299 (Rs. 2,999) • For First 100 Days'
+                        )}
                       </span>
                     </button>
                   </div>
@@ -477,13 +502,16 @@ export const ProfileView: React.FC = () => {
               </div>
               <div className="flex-1 text-center md:text-left space-y-2">
                 <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-500/20 border border-green-400/30 text-green-400 rounded-full text-[9px] font-mono font-black uppercase tracking-widest">
-                  👑 SOVEREIGN CLEARANCE / प्रीमियम संप्रभु प्राप्त है
+                  👑 {t('प्रीमियम संप्रभु प्राप्त है', 'SOVEREIGN CLEARANCE ACTIVE')}
                 </div>
                 <h2 className="text-3xl font-display font-black text-white italic tracking-tighter uppercase leading-none pt-1">
-                  Premium Access Active
+                  {t('प्रीमियम एक्सेस सक्रिय है', 'Premium Access Active')}
                 </h2>
                 <p className="text-zinc-400 text-sm font-medium leading-relaxed max-w-xl">
-                  You hold complete Special Strategist membership permissions. Enjoy limitless files, strategies, and shadow channels.
+                  {t(
+                    'आपके पास पूर्ण Special Strategist सदस्यता अधिकार हैं। सभी प्रीमियम फाइलों और रणनीतियों का अध्ययन करें।',
+                    'You hold complete Special Strategist membership permissions. Enjoy all premium files, books, and strategies.'
+                  )}
                 </p>
               </div>
             </div>
@@ -493,35 +521,36 @@ export const ProfileView: React.FC = () => {
         <Card className="space-y-6">
           <div className="flex justify-between items-center">
             <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
-              <Zap className="w-4 h-4 text-amber-500" /> Curriculum Engagement / पाठ्यक्रम विवरण
+              <Zap className="w-4 h-4 text-amber-500" />{' '}
+              {t('पाठ्यक्रम विवरण (Curriculum Engagement)', 'Curriculum Engagement')}
             </h3>
             <span className="text-[10px] text-amber-500 font-black uppercase tracking-widest">
-              Active
+              {t('सक्रिय', 'Active')}
             </span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl space-y-1">
               <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-mono">
-                100-Day Consciousness
+                {t('१००-दिवसीय यात्रा', '100-Day Consciousness')}
               </span>
               <div className="text-xl font-bold font-mono text-white">
-                {(profile.completedDays || []).length} / 100 Days
+                {(profile.completedDays || []).length} / 100 {t('दिन', 'Days')}
               </div>
             </div>
             <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl space-y-1">
               <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-mono">
-                Disciplined Presence
+                {t('अनुशासित उपस्थिति', 'Disciplined Presence')}
               </span>
               <div className="text-xl font-bold font-mono text-amber-400">
-                {profile.streak || 1} Days Active
+                {profile.streak || 1} {t('दिन सक्रिय', 'Days Active')}
               </div>
             </div>
             <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl space-y-1">
               <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-mono">
-                Reflection Journal
+                {t('चिंतन डायरी', 'Reflection Journal')}
               </span>
               <div className="text-xl font-bold font-mono text-white">
-                {Object.keys(profile.dailyReflections || {}).length} Entries
+                {Object.keys(profile.dailyReflections || {}).length} {t('प्रविष्टियां', 'Entries')}
               </div>
             </div>
           </div>
@@ -530,16 +559,17 @@ export const ProfileView: React.FC = () => {
         <Card className="space-y-6">
           <div className="flex justify-between items-center">
             <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-green-500" /> Recent Integrations
+              <CheckCircle2 className="w-4 h-4 text-green-500" />{' '}
+              {t('हाल के पूर्ण किए गए दिन', 'Recent Integrations')}
             </h3>
             <span className="text-[10px] text-green-500 font-black uppercase tracking-widest">
-              Encrypted
+              {t('सत्यापित', 'Verified')}
             </span>
           </div>
           <div className="space-y-3">
             {!profile.completedDays || profile.completedDays.length === 0 ? (
               <p className="text-gray-500 italic text-sm">
-                No modules integrated into frame yet.
+                {t('अभी तक कोई दिन पूर्ण नहीं किया गया है।', 'No modules integrated into frame yet.')}
               </p>
             ) : (
               [...(profile.completedDays || [])]
@@ -555,10 +585,12 @@ export const ProfileView: React.FC = () => {
                         DAY {day < 10 ? `0${day}` : day}
                       </div>
                       <div className="text-xs text-white/70 font-bold uppercase tracking-tight">
-                        Pattern Recognized
+                        {t('संकल्प पूर्ण (Pattern Recognized)', 'Pattern Recognized')}
                       </div>
                     </div>
-                    <div className="text-[10px] text-gray-700 font-mono">AUTHORIZED</div>
+                    <div className="text-[10px] text-gray-500 font-mono">
+                      {t('पूर्ण', 'AUTHORIZED')}
+                    </div>
                   </div>
                 ))
             )}
@@ -568,18 +600,25 @@ export const ProfileView: React.FC = () => {
         <Card className="lg:col-span-2 space-y-6">
           <div className="flex justify-between items-center flex-wrap gap-4">
             <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-amber-500" /> Wisdom Log / दैनिक चिंतन इतिहास
+              <BookOpen className="w-4 h-4 text-amber-500" />{' '}
+              {t('दैनिक चिंतन इतिहास (Wisdom Log)', 'Wisdom Log / Daily Reflections')}
             </h3>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowJournalModal(true)}
-                className="px-3 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 rounded-full text-[10px] font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                className="px-3.5 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 rounded-full text-[10px] font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
               >
-                <FileText className="w-3 h-3" />
-                <span>डायरी खोलें व एक्सपोर्ट करें (Full Journal)</span>
+                <FileText className="w-3.5 h-3.5 text-amber-400" />
+                <span>
+                  {t(
+                    'डायरी खोलें व सुंदर PDF डाउनलोड करें',
+                    'Open Diary & Export Beautiful PDF'
+                  )}
+                </span>
               </button>
               <span className="text-[10px] text-zinc-400 font-mono font-bold uppercase tracking-widest bg-zinc-800 px-2.5 py-1 rounded-full border border-zinc-700">
-                {Object.keys(profile.dailyReflections || {}).length} Recorded
+                {Object.keys(profile.dailyReflections || {}).length}{' '}
+                {t('दर्ज', 'Recorded')}
               </span>
             </div>
           </div>

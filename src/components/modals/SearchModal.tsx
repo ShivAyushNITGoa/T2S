@@ -4,6 +4,7 @@ import { ArrowLeft, Target, PlayCircle, BookOpen, ChevronRight } from 'lucide-re
 import { VideoArchive, LibraryBook } from '../../types';
 import { getLocalDateString, isCompletedOnDate } from '../../utils/dateUtils';
 import { useAppContext } from '../../context/AppContext';
+import { useLanguage } from '../../context/LanguageContext';
 
 export const SearchModal: React.FC = () => {
   const {
@@ -20,6 +21,7 @@ export const SearchModal: React.FC = () => {
     openBookModal,
     openJourneyModuleModal,
   } = useAppContext();
+  const { t } = useLanguage();
 
   const [queryStr, setQueryStr] = useState('');
 
@@ -103,24 +105,27 @@ export const SearchModal: React.FC = () => {
           <Target className="text-white w-6 h-6" />
           <input
             autoFocus
-            placeholder="COMMAND: SEARCH DATABASE..."
+            placeholder={t(
+              'खोजें: वीडियो, ग्रंथ या अध्याय...',
+              'COMMAND: SEARCH DATABASE...'
+            )}
             className="flex-1 bg-transparent border-none outline-none text-xl font-black italic text-white placeholder:text-neutral-700 font-mono"
             value={queryStr}
             onChange={(e) => setQueryStr(e.target.value)}
           />
           <div className="px-2 py-1 bg-white/5 rounded text-[8px] font-black uppercase text-gray-700 font-mono">
-            ESC TO EXIT
+            {t('बंद करें (ESC)', 'ESC TO EXIT')}
           </div>
         </div>
         <div className="max-h-[60vh] overflow-y-auto p-4 space-y-2">
           {queryStr && results.length === 0 && (
             <div className="py-12 text-center text-gray-600 font-bold uppercase tracking-widest text-xs">
-              Zero Matches Found in Core
+              {t('कोई परिणाम नहीं मिला', 'Zero Matches Found in Core')}
             </div>
           )}
           {!queryStr && (
             <div className="py-12 text-center text-gray-600 font-bold uppercase tracking-widest text-xs">
-              Input Directive to Search
+              {t('खोजने के लिए टाइप करें...', 'Input Directive to Search')}
             </div>
           )}
           {results.map((r, i: number) => (

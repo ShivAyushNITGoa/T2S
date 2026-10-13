@@ -12,6 +12,7 @@ import { UserProfile } from '../types';
 import { getRankFromXP, RANKS } from '../config/constants';
 import { VipSectionLockedView } from '../components/common/UiPrimitives';
 import { useAppContext } from '../context/AppContext';
+import { useLanguage } from '../context/LanguageContext';
 
 export const LeaderboardView: React.FC<{
   embedded?: boolean;
@@ -23,6 +24,7 @@ export const LeaderboardView: React.FC<{
     openAscensionModal,
     refreshFromCacheAndServer,
   } = useAppContext();
+  const { t } = useLanguage();
 
   const [firestoreLeaders, setFirestoreLeaders] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(false);
@@ -86,10 +88,16 @@ export const LeaderboardView: React.FC<{
                 <span>SOVEREIGN DISCIPLINE HALL OF FAME</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                शीर्ष साधक तालिका <span className="text-amber-400">(Leaderboard)</span>
+                {t('शीर्ष साधक तालिका', 'Discipline Leaderboard')}{' '}
+                <span className="text-amber-400">
+                  {t('(Leaderboard)', '(Hall of Fame)')}
+                </span>
               </h1>
               <p className="text-sm text-zinc-300 max-w-2xl leading-relaxed">
-                यहाँ वे साधक हैं जो केवल वीडियो नहीं देखते, बल्कि प्रतिदिन 100-Day Consciousness Course के नियमों को अपने जीवन में उतारते हैं।
+                {t(
+                  'यहाँ वे साधक हैं जो केवल वीडियो नहीं देखते, बल्कि प्रतिदिन 100-Day Consciousness Course के नियमों को अपने जीवन में उतारते हैं।',
+                  'Here stand the practitioners who do not merely consume content, but execute the daily 100-Day Consciousness Crucible with discipline.'
+                )}
               </p>
             </div>
 
@@ -104,7 +112,9 @@ export const LeaderboardView: React.FC<{
                   className="w-12 h-12 rounded-xl object-cover border border-amber-500/30"
                 />
                 <div>
-                  <div className="text-xs text-zinc-400 font-mono">आपकी स्थिति (Your Standing)</div>
+                  <div className="text-xs text-zinc-400 font-mono">
+                    {t('आपकी स्थिति (Your Standing)', 'Your Standing')}
+                  </div>
                   <div className="text-base font-bold text-white">
                     {currentUserProfile.displayName}
                   </div>
@@ -124,7 +134,9 @@ export const LeaderboardView: React.FC<{
         <div className="bg-zinc-900/50 border border-zinc-800/80 rounded-2xl p-4 sm:p-5">
           <div className="text-xs font-mono text-zinc-400 uppercase tracking-wider mb-3 flex items-center gap-2">
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span>चेतना के ६ स्तर (6 Tiers of Sovereignty)</span>
+            <span>
+              {t('चेतना के ६ स्तर (6 Tiers of Sovereignty)', '6 Tiers of Sovereignty')}
+            </span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
             {RANKS.map((r) => (
@@ -133,10 +145,14 @@ export const LeaderboardView: React.FC<{
                 className="p-3 rounded-xl bg-zinc-950/70 border border-zinc-800/80 flex flex-col justify-between"
               >
                 <div className="flex items-center justify-between gap-1 mb-1">
-                  <span className="text-xs font-bold text-white">{r.hindiName}</span>
+                  <span className="text-xs font-bold text-white">
+                    {t(r.hindiName, r.name)}
+                  </span>
                   <span className={`w-2 h-2 rounded-full ${r.color}`} />
                 </div>
-                <div className="text-[11px] text-zinc-400 font-mono">{r.name}</div>
+                <div className="text-[11px] text-zinc-400 font-mono">
+                  {t(r.name, r.hindiName)}
+                </div>
                 <div className="text-[10px] text-amber-400/90 font-mono mt-1.5">
                   {r.minXP.toLocaleString()}+ XP
                 </div>
@@ -158,9 +174,14 @@ export const LeaderboardView: React.FC<{
       ) : leaders.length === 0 ? (
         <div className="p-12 text-center bg-zinc-900/40 rounded-3xl border border-zinc-800 space-y-2">
           <Trophy className="w-10 h-10 text-zinc-600 mx-auto" />
-          <div className="text-white font-bold">अभी कोई साधक सूची में नहीं है</div>
+          <div className="text-white font-bold">
+            {t('अभी कोई साधक सूची में नहीं है', 'No Practitioners on Leaderboard Yet')}
+          </div>
           <p className="text-xs text-zinc-400">
-            अपना पहला दिन पूरा करें और शीर्ष स्थान प्राप्त करें।
+            {t(
+              'अपना पहला दिन पूरा करें और शीर्ष स्थान प्राप्त करें।',
+              'Complete your first Journey day to claim the top rank.'
+            )}
           </p>
         </div>
       ) : (
@@ -235,12 +256,12 @@ export const LeaderboardView: React.FC<{
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-zinc-900/80 border-b border-zinc-800 text-[11px] font-mono uppercase text-zinc-400">
-                    <th className="px-5 py-3.5">स्थान (Rank)</th>
-                    <th className="px-5 py-3.5">साधक (Practitioner)</th>
-                    <th className="px-5 py-3.5">स्तर (Tier)</th>
-                    <th className="px-5 py-3.5">पूरे दिन (Days)</th>
-                    <th className="px-5 py-3.5">स्ट्रीक (Streak)</th>
-                    <th className="px-5 py-3.5 text-right">अंक (XP)</th>
+                    <th className="px-5 py-3.5">{t('स्थान (Rank)', 'Rank')}</th>
+                    <th className="px-5 py-3.5">{t('साधक (Practitioner)', 'Practitioner')}</th>
+                    <th className="px-5 py-3.5">{t('स्तर (Tier)', 'Tier')}</th>
+                    <th className="px-5 py-3.5">{t('पूरे दिन (Days)', 'Completed Days')}</th>
+                    <th className="px-5 py-3.5">{t('स्ट्रीक (Streak)', 'Streak')}</th>
+                    <th className="px-5 py-3.5 text-right">{t('अंक (XP)', 'Points (XP)')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-800/60 text-sm">

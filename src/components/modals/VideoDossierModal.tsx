@@ -4,6 +4,7 @@ import { ContentModal } from '../common/UiPrimitives';
 import { getInAppVideoEmbedInfo } from '../../utils/mediaUtils';
 import { speakOneShot } from '../../utils/speechUtils';
 import { useAppContext } from '../../context/AppContext';
+import { useLanguage } from '../../context/LanguageContext';
 
 export const VideoDossierModal: React.FC = () => {
   const {
@@ -12,6 +13,7 @@ export const VideoDossierModal: React.FC = () => {
     openAscensionModal,
     isUserVip,
   } = useAppContext();
+  const { t } = useLanguage();
 
   if (!selectedVideo) return null;
 
@@ -40,7 +42,10 @@ export const VideoDossierModal: React.FC = () => {
               {selectedVideo.title}
             </h3>
             <p className="text-xs text-gray-400 max-w-md mx-auto">
-              This video transmission is classified exclusively for Sovereign Tier members. Upgrade your account to unlock full in-app access.
+              {t(
+                'यह प्रीमियम वीडियो केवल Sovereign VIP सदस्यों के लिए आरक्षित है। ऐप के भीतर इसे देखने के लिए अपना अकाउंट अपग्रेड करें।',
+                'This video transmission is classified exclusively for Sovereign Tier members. Upgrade your account to unlock full in-app access.'
+              )}
             </p>
           </div>
           <button
@@ -50,7 +55,7 @@ export const VideoDossierModal: React.FC = () => {
             }}
             className="px-6 py-3 bg-gradient-to-r from-amber-500 to-yellow-500 text-black font-black uppercase tracking-wider text-xs rounded-xl shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:scale-105 transition-all cursor-pointer font-mono"
           >
-            Upgrade Account Access / अपग्रेड करें
+            {t('अकाउंट अपग्रेड करें (Upgrade Access)', 'Upgrade Account Access')}
           </button>
         </div>
       ) : (

@@ -37,6 +37,7 @@ import { CommunityPost, CommunityPostReply } from '../types';
 import { getRankFromXP } from '../config/constants';
 import { VipSectionLockedView } from '../components/common/UiPrimitives';
 import { useAppContext } from '../context/AppContext';
+import { useLanguage } from '../context/LanguageContext';
 
 const FORUM_CATEGORIES = [
   { id: 'all', label: 'सभी चर्चाएं (All)', hindi: 'सभी' },
@@ -92,6 +93,7 @@ export const CommunityForumView: React.FC = () => {
     handleLogin,
     showToast,
   } = useAppContext();
+  const { t } = useLanguage();
 
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -328,14 +330,24 @@ export const CommunityForumView: React.FC = () => {
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-mono">
               <MessageSquare className="w-3.5 h-3.5" />
-              <span>SOVEREIGN THINKERS FORUM // विचार विमर्श मंच</span>
+              <span>
+                {t(
+                  'विचार विमर्श मंच // SOVEREIGN THINKERS FORUM',
+                  'SOVEREIGN THINKERS FORUM'
+                )}
+              </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              साधक संवाद मंच{' '}
-              <span className="text-amber-400">(Community Reflections)</span>
+              {t('साधक संवाद मंच', 'Community Reflections')}{' '}
+              <span className="text-amber-400">
+                {t('(Community Reflections)', '(Practitioner Forum)')}
+              </span>
             </h1>
             <p className="text-sm text-zinc-300 max-w-2xl leading-relaxed">
-              यहाँ सतही गपशप नहीं होती। अपने 100-Day Journey के ज़मीनी अनुभव, समाज की अदृश्य व्यवस्थाओं के अवलोकन और मानसिक स्पष्टता के सूत्र साझा करें।
+              {t(
+                'यहाँ सतही गपशप नहीं होती। अपने 100-Day Journey के ज़मीनी अनुभव, समाज की अदृश्य व्यवस्थाओं के अवलोकन और मानसिक स्पष्टता के सूत्र साझा करें।',
+                'No shallow chatter here. Share your real-world insights from the 100-Day Journey, observations on invisible societal systems, and mental clarity notes.'
+              )}
             </p>
           </div>
 
@@ -344,7 +356,9 @@ export const CommunityForumView: React.FC = () => {
               {posts.length}
             </div>
             <div>
-              <div className="text-xs font-bold text-white">सक्रिय विमर्श</div>
+              <div className="text-xs font-bold text-white">
+                {t('सक्रिय विमर्श', 'Active Discussions')}
+              </div>
               <div className="text-[11px] text-zinc-400 font-mono">
                 Verified Reflections
               </div>
@@ -373,8 +387,11 @@ export const CommunityForumView: React.FC = () => {
                   {currentUserProfile.displayName}
                 </div>
                 <div className="text-[11px] text-amber-400 font-mono">
-                  {getRankFromXP(currentUserProfile.xp || 0).hindiName} · Share
-                  your observation
+                  {t(
+                    getRankFromXP(currentUserProfile.xp || 0).hindiName,
+                    getRankFromXP(currentUserProfile.xp || 0).name
+                  )}{' '}
+                  · {t('अपना अवलोकन साझा करें', 'Share your observation')}
                 </div>
               </div>
             </div>
@@ -386,23 +403,25 @@ export const CommunityForumView: React.FC = () => {
                 className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-200 font-mono focus:outline-none focus:border-amber-500/50"
               >
                 <option value="Daily Epiphany">
-                  💡 दैनिक अनुभव (Daily Epiphany)
+                  💡 {t('दैनिक अनुभव (Daily Epiphany)', 'Daily Epiphany')}
                 </option>
                 <option value="Social Reality">
-                  🔍 सामाजिक सत्य (Social Reality)
+                  🔍 {t('सामाजिक सत्य (Social Reality)', 'Social Reality')}
                 </option>
                 <option value="Mental Model">
-                  🧠 मानसिक मॉडल (Mental Model)
+                  🧠 {t('मानसिक मॉडल (Mental Model)', 'Mental Model')}
                 </option>
-                <option value="Question">❓ गहन प्रश्न (Deep Question)</option>
+                <option value="Question">
+                  ❓ {t('गहन प्रश्न (Deep Question)', 'Deep Question')}
+                </option>
                 <option value="Systemic Observations">
-                  🏛️ व्यवस्था अवलोकन (Systemic)
+                  🏛️ {t('व्यवस्था अवलोकन (Systemic)', 'Systemic Observations')}
                 </option>
                 <option value="100-Day Protocol">
-                  🔥 १००-दिवसीय प्रोटोकॉल (100-Day)
+                  🔥 {t('१००-दिवसीय प्रोटोकॉल (100-Day)', '100-Day Protocol')}
                 </option>
                 <option value="Book Insights">
-                  📖 ग्रंथ सूत्र (Book Insights)
+                  📖 {t('ग्रंथ सूत्र (Book Insights)', 'Book Insights')}
                 </option>
               </select>
 
@@ -412,7 +431,7 @@ export const CommunityForumView: React.FC = () => {
                 max={100}
                 value={newPostDay}
                 onChange={(e) => setNewPostDay(e.target.value)}
-                placeholder="Day # (Optional)"
+                placeholder={t('दिन # (वैकल्पिक)', 'Day # (Optional)')}
                 className="w-32 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-200 font-mono focus:outline-none focus:border-amber-500/50"
               />
             </div>
@@ -421,7 +440,10 @@ export const CommunityForumView: React.FC = () => {
           <textarea
             value={newPostContent}
             onChange={(e) => setNewPostContent(e.target.value)}
-            placeholder="आज आपने अपने व्यवहार या समाज की किस अदृश्य व्यवस्था को नोटिस किया? अपना अनुभव स्पष्ट शब्दों में लिखें..."
+            placeholder={t(
+              'आज आपने अपने व्यवहार या समाज की किस अदृश्य व्यवस्था को नोटिस किया? अपना अनुभव स्पष्ट शब्दों में लिखें...',
+              'What invisible societal pattern or personal habit did you observe today? Write your reflection clearly...'
+            )}
             rows={3}
             maxLength={2000}
             className="w-full bg-zinc-950/90 border border-zinc-800 rounded-2xl p-4 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500/50 leading-relaxed resize-none"
@@ -436,7 +458,11 @@ export const CommunityForumView: React.FC = () => {
 
           <div className="flex items-center justify-between gap-4 pt-1">
             <span className="text-[11px] font-mono text-zinc-500">
-              {newPostContent.length}/2000 अक्षर · सम्मानजनक एवं तथ्यपूर्ण विचार लिखें
+              {newPostContent.length}/2000{' '}
+              {t(
+                'अक्षर · सम्मानजनक एवं तथ्यपूर्ण विचार लिखें',
+                'chars · Share thoughtful & respectful insights'
+              )}
             </span>
 
             <button
@@ -447,8 +473,8 @@ export const CommunityForumView: React.FC = () => {
               <Send className="w-3.5 h-3.5" />
               <span>
                 {isSubmitting
-                  ? 'प्रकाशित हो रहा है...'
-                  : 'विचार प्रकाशित करें (Post Reflection)'}
+                  ? t('प्रकाशित हो रहा है...', 'Publishing...')
+                  : t('विचार प्रकाशित करें (Post Reflection)', 'Post Reflection')}
               </span>
             </button>
           </div>

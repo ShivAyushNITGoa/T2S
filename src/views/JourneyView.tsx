@@ -454,14 +454,14 @@ export const JourneyView: React.FC = () => {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-mono font-bold text-amber-400 uppercase">
-                  {t('रात्रि आत्म-चिंतन', 'Daily Reflection')}
+                  {t('रात्रि आत्म-चिंतन (Wisdom Log)', 'Wisdom Log & Reflection')}
                 </span>
                 <button
                   onClick={() => setShowJournalModal(true)}
-                  className="text-[11px] font-mono text-zinc-400 hover:text-amber-400 flex items-center gap-1 cursor-pointer"
+                  className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-[11px] font-mono font-bold text-amber-300 flex items-center gap-1.5 cursor-pointer transition-all"
                 >
-                  <BookOpen className="w-3.5 h-3.5" />
-                  <span>{t('डायरी देखें', 'Open Journal')}</span>
+                  <BookOpen className="w-3.5 h-3.5 text-amber-400" />
+                  <span>{t('डायरी व PDF', 'Diary & PDF')}</span>
                 </button>
               </div>
 
