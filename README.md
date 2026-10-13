@@ -57,7 +57,7 @@ A ground-up, cleanly architected TypeScript + React + Firebase Firestore platfor
 
 4. **Real-Time User & Admin Persistence on Firestore**:
    - **100-Day Journey (`src/data/journeyData.ts`)**: All 100 days intact, with real-time cloud sync for `completedDays`, `presenceDays`, `dailyReflections`, `xp`, `level`, and `streak`.
-   - **Clean Zero-Demo Catalogs**: Video Archive, Library, and Shop start completely free of demo clutter and sync live with Firestore.
+   - **Clean Zero-Demo Catalogs**: Video Archive, Library, and Shop start completely free of demo mode clutter and sync live with Firestore.
    - **Restricted Admin Command Center (`src/views/admin/`)**: Visible strictly to the designated administrator account, featuring full **Add, Edit, and Delete** across **100-Day Journey**, **Video Archives (with local device thumbnail upload)**, **Great Library (with local cover upload, in-app PDF links & interactive chapter editor)**, **Strategic Shop (with local image upload)**, **Community Forum**, and **Practitioner Directory**.
 
 ---
