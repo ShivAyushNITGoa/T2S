@@ -57,6 +57,8 @@ import { isDemoArchiveItem, isDemoLibraryItem } from '../utils/mediaUtils';
 import { navHistory } from '../utils/navigationHistory';
 import {
   sanitizeForFirestore,
+  prepareForFirestoreWrite,
+  getItemTimestampMs,
   mergeContentById,
   mergeSingleUserProfile,
   mergeUsersLists,
@@ -535,9 +537,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const unsubAnnouncements = onSnapshot(
       collection(db, 'announcements'),
       (snap) => {
-        const docs = snap.docs.map(
-          (d) => ({ id: d.id, ...d.data() } as SystemAnnouncement)
-        );
+        const docs = snap.docs
+          .map((d) => ({ id: d.id, ...d.data() } as SystemAnnouncement))
+          .sort((a, b) => getItemTimestampMs(b) - getItemTimestampMs(a));
         const active =
           docs.find((d) => d.active === true || d.isActive === true) || null;
         setActiveAnnouncement(active);
@@ -656,8 +658,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       broadcastContentUpdate('users', resolvedUser);
 
-      const firestorePayload = sanitizeForFirestore({
+      const firestorePayload = prepareForFirestoreWrite({
         ...resolvedUser,
+        lastLoginAt: resolvedUser.lastLoginAt || serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
       delete (firestorePayload as any)._forceReplaceDays;
@@ -665,6 +668,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setDoc(doc(db, 'users', resolvedUser.uid), firestorePayload, {
         merge: true,
       }).catch(() => {});
+
+      if (isDesignatedAdminEmail(resolvedUser.email)) {
+        setDoc(
+          doc(db, 'admins', resolvedUser.uid),
+          {
+            email: resolvedUser.email,
+            role: 'admin',
+            assignedAt: serverTimestamp(),
+          },
+          { merge: true }
+        ).catch(() => {});
+      }
     },
     []
   );
@@ -683,6 +698,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await pushServerSync('users', 'delete', uid);
     broadcastContentUpdate('users', { uid, deleted: true });
     deleteDoc(doc(db, 'users', uid)).catch(() => {});
+    deleteDoc(doc(db, 'admins', uid)).catch(() => {});
   }, []);
 
   // Auth & Profile Hydration
@@ -1050,17 +1066,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const deletedIds = getDeletedDocIds();
     return Array.from({ length: 100 }, (_, i) => {
       const d = i + 1;
-      const docId = `day-${d}`;
-      const exists = !deletedIds.has(docId)
-        ? dbModules.find((m) => Number(m.day) === d || m.id === docId)
-        : undefined;
+      const canonicalId = `day_${d}`;
+      const legacyId = `day-${d}`;
+      const candidates = dbModules.filter(
+        (m) =>
+          !deletedIds.has(m.id) &&
+          (Number(m.day) === d || m.id === canonicalId || m.id === legacyId)
+      );
+      candidates.sort((a, b) => getItemTimestampMs(b) - getItemTimestampMs(a));
+      const exists = candidates[0];
       const raw = RAW_JOURNEY_MODULES.find((m) => m.day === d)!;
       if (exists) {
+        const isPrem =
+          typeof exists.isPremium === 'boolean'
+            ? exists.isPremium
+            : Boolean(exists.isVip ?? raw.isPremium ?? raw.isVip);
         return {
           ...raw,
           ...exists,
-          id: docId,
+          id: canonicalId,
           day: d,
+          isPremium: isPrem,
+          isVip: isPrem,
           category: exists.category || raw.category || getCategoryForDay(d),
         } as JourneyModule;
       }
@@ -1199,8 +1226,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // 5. Announcements
       if (Array.isArray(serverData?.announcements)) {
+        const sorted = [...serverData!.announcements].sort(
+          (a, b) => getItemTimestampMs(b) - getItemTimestampMs(a)
+        );
         const active =
-          serverData!.announcements.find(
+          sorted.find(
             (d: any) => d.active === true || d.isActive === true
           ) || null;
         if (active) setActiveAnnouncement(active);
@@ -1217,28 +1247,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const unsubUsers = onSnapshot(
       collection(db, 'users'),
       (snap) => {
+        snap.docChanges().forEach((change) => {
+          if (change.type === 'removed') {
+            markDocDeleted(change.doc.id);
+            pushServerSync('users', 'delete', change.doc.id);
+          }
+        });
         const firestoreUsers = snap.docs.map(
           (d) => ({ uid: d.id, ...d.data() } as UserProfile)
         );
         const cachedUsers = getCachedUsersRegistry();
-        const merged = mergeUsersLists(firestoreUsers, cachedUsers);
+        // Keep only recently modified local users if snapshot is live from server
+        const filteredCached = !snap.metadata.fromCache
+          ? cachedUsers.filter(
+              (c) =>
+                firestoreUsers.some((f) => f.uid === c.uid) ||
+                Date.now() - (c.updatedAtMs || 0) < 12000
+            )
+          : cachedUsers;
+        const merged = mergeUsersLists(firestoreUsers, filteredCached);
         setAllUsers(merged);
         saveUsersRegistry(merged);
-        // Push any local users not yet in Firestore up to Firestore
-        const firestoreUids = new Set(firestoreUsers.map((u) => u.uid));
-        merged.forEach((u) => {
-          if (u.uid && !firestoreUids.has(u.uid)) {
-            setDoc(
-              doc(db, 'users', u.uid),
-              sanitizeForFirestore({
-                ...u,
-                updatedAt: serverTimestamp(),
-              }),
-              { merge: true }
-            ).catch(() => {});
-          }
-          pushServerSync('users', 'set', u.uid, u);
-        });
       },
       () => {}
     );
@@ -1246,6 +1275,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const unsubJourney = onSnapshot(
       collection(db, 'journey'),
       (snap) => {
+        snap.docChanges().forEach((change) => {
+          if (change.type === 'removed') {
+            markDocDeleted(change.doc.id);
+            pushServerSync('journey', 'delete', change.doc.id);
+          }
+        });
         const firestoreModules = snap.docs.map(
           (d) => ({ id: d.id, ...d.data() } as JourneyModule)
         );
@@ -1254,9 +1289,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const raw = localStorage.getItem(STORAGE_KEYS.JOURNEY_CACHE);
           if (raw) cachedModules = JSON.parse(raw);
         } catch {}
+        const filteredCached = !snap.metadata.fromCache
+          ? cachedModules.filter(
+              (c) =>
+                firestoreModules.some(
+                  (f) => f.id === c.id || Number(f.day) === Number(c.day)
+                ) || Date.now() - (c.updatedAtMs || 0) < 12000
+            )
+          : cachedModules;
         const combinedOverrides = mergeContentById<JourneyModule>(
           firestoreModules,
-          cachedModules
+          filteredCached
         );
         localStorage.setItem(
           STORAGE_KEYS.JOURNEY_CACHE,
@@ -1274,6 +1317,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const unsubArchives = onSnapshot(
       collection(db, 'archives'),
       (snap) => {
+        snap.docChanges().forEach((change) => {
+          if (change.type === 'removed') {
+            markDocDeleted(change.doc.id);
+            pushServerSync('archives', 'delete', change.doc.id);
+          }
+        });
         const firestoreData = snap.docs
           .map((d) => ({ id: d.id, ...d.data() } as VideoArchive))
           .filter((v) => !isDemoArchiveItem(v));
@@ -1282,26 +1331,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const raw = localStorage.getItem(STORAGE_KEYS.ARCHIVES_CACHE);
           if (raw) cachedData = JSON.parse(raw);
         } catch {}
+        const filteredCached = !snap.metadata.fromCache
+          ? cachedData.filter(
+              (c) =>
+                firestoreData.some((f) => f.id === c.id) ||
+                Date.now() - (c.updatedAtMs || 0) < 12000
+            )
+          : cachedData;
         const merged = mergeContentById<VideoArchive>(
           firestoreData,
-          cachedData,
+          filteredCached,
           (v) => !isDemoArchiveItem(v)
         );
         setArchives(merged);
         localStorage.setItem(STORAGE_KEYS.ARCHIVES_CACHE, JSON.stringify(merged));
         if (isCurrentUserAdmin) {
           snap.docs.forEach((d) => {
-            if (isDemoArchiveItem({ id: d.id, ...d.data() } as VideoArchive)) {
+            const rawDoc = d.data();
+            if (isDemoArchiveItem({ id: d.id, ...rawDoc } as VideoArchive)) {
               deleteDoc(doc(db, 'archives', d.id)).catch(() => {});
-            }
-          });
-          // Ensure any local admin items not yet in Firestore are pushed up
-          const firestoreIds = new Set(firestoreData.map((x) => x.id));
-          merged.forEach((item) => {
-            if (item.id && !firestoreIds.has(item.id)) {
+            } else if (!rawDoc.createdAt) {
+              // Backfill createdAt so the other version of the app (which queries orderBy('createdAt', 'desc')) also displays this video
               setDoc(
-                doc(db, 'archives', item.id),
-                sanitizeForFirestore(item),
+                doc(db, 'archives', d.id),
+                { createdAt: rawDoc.updatedAt || serverTimestamp() },
                 { merge: true }
               ).catch(() => {});
             }
@@ -1318,6 +1371,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const unsubLibrary = onSnapshot(
       collection(db, 'library'),
       (snap) => {
+        snap.docChanges().forEach((change) => {
+          if (change.type === 'removed') {
+            markDocDeleted(change.doc.id);
+            pushServerSync('library', 'delete', change.doc.id);
+          }
+        });
         const firestoreData = snap.docs
           .map((d) => ({ id: d.id, ...d.data() } as LibraryBook))
           .filter((b) => !isDemoLibraryItem(b));
@@ -1326,9 +1385,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const raw = localStorage.getItem(STORAGE_KEYS.LIBRARY_CACHE);
           if (raw) cachedData = JSON.parse(raw);
         } catch {}
+        const filteredCached = !snap.metadata.fromCache
+          ? cachedData.filter(
+              (c) =>
+                firestoreData.some((f) => f.id === c.id) ||
+                Date.now() - (c.updatedAtMs || 0) < 12000
+            )
+          : cachedData;
         const merged = mergeContentById<LibraryBook>(
           firestoreData,
-          cachedData,
+          filteredCached,
           (b) => !isDemoLibraryItem(b)
         );
         setLibrary(merged);
@@ -1337,16 +1403,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           snap.docs.forEach((d) => {
             if (isDemoLibraryItem({ id: d.id, ...d.data() } as LibraryBook)) {
               deleteDoc(doc(db, 'library', d.id)).catch(() => {});
-            }
-          });
-          const firestoreIds = new Set(firestoreData.map((x) => x.id));
-          merged.forEach((item) => {
-            if (item.id && !firestoreIds.has(item.id)) {
-              setDoc(
-                doc(db, 'library', item.id),
-                sanitizeForFirestore(item),
-                { merge: true }
-              ).catch(() => {});
             }
           });
         }
@@ -1368,11 +1424,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [user, isCurrentUserAdmin, refreshFromCacheAndServer, buildMergedJourneyList]);
 
   const upsertArchiveItem = useCallback((item: VideoArchive) => {
+    const isPrem =
+      typeof item.isPremium === 'boolean'
+        ? item.isPremium
+        : Boolean(item.isVip);
+    const nowIso = new Date().toISOString();
     const stamped: VideoArchive = sanitizeForFirestore({
       ...item,
-      isPremium: Boolean(item.isPremium ?? item.isVip),
-      isVip: Boolean(item.isVip ?? item.isPremium),
-      updatedAt: new Date().toISOString(),
+      title: (item.title || 'Untitled Documentary').trim(),
+      isPremium: isPrem,
+      isVip: isPrem,
+      createdAt: item.createdAt || nowIso,
+      updatedAt: nowIso,
       updatedAtMs: Date.now(),
     });
     unmarkDocDeleted(stamped.id);
@@ -1390,7 +1453,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
     setDoc(
       doc(db, 'archives', stamped.id),
-      sanitizeForFirestore({ ...stamped, updatedAt: serverTimestamp() }),
+      prepareForFirestoreWrite({
+        ...stamped,
+        createdAt: item.createdAt || serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }),
       { merge: true }
     ).catch(() => {});
   }, []);
@@ -1409,11 +1476,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const upsertLibraryItem = useCallback((item: LibraryBook) => {
+    const isPrem =
+      typeof item.isPremium === 'boolean'
+        ? item.isPremium
+        : Boolean(item.isVip);
+    const nowIso = new Date().toISOString();
     const stamped: LibraryBook = sanitizeForFirestore({
       ...item,
-      isPremium: Boolean(item.isPremium ?? item.isVip),
-      isVip: Boolean(item.isVip ?? item.isPremium),
-      updatedAt: new Date().toISOString(),
+      title: (item.title || 'Untitled Manuscript').trim(),
+      author: (item.author || 'A. K. Chandradipti').trim(),
+      category: (item.category || 'Foundational Manual').trim(),
+      excerpt: item.excerpt || item.description || '',
+      fileUrl: item.fileUrl || item.pdfUrl || '',
+      isPremium: isPrem,
+      isVip: isPrem,
+      createdAt: item.createdAt || nowIso,
+      updatedAt: nowIso,
       updatedAtMs: Date.now(),
     });
     unmarkDocDeleted(stamped.id);
@@ -1431,7 +1509,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
     setDoc(
       doc(db, 'library', stamped.id),
-      sanitizeForFirestore({ ...stamped, updatedAt: serverTimestamp() }),
+      prepareForFirestoreWrite({
+        ...stamped,
+        createdAt: item.createdAt || serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }),
       { merge: true }
     ).catch(() => {});
   }, []);
@@ -1451,16 +1533,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const upsertJourneyItem = useCallback(
     (item: JourneyModule) => {
-      const docId = item.id || `day-${item.day}`;
+      // Use day_${day} as the canonical Firestore document ID to match the other version of the app
+      const docId = `day_${item.day}`;
+      const legacyDocId = `day-${item.day}`;
+      const isPrem =
+        typeof item.isPremium === 'boolean'
+          ? item.isPremium
+          : Boolean(item.isVip);
       const normalized: JourneyModule = sanitizeForFirestore({
         ...item,
         id: docId,
-        isPremium: Boolean(item.isPremium ?? item.isVip),
-        isVip: Boolean(item.isVip ?? item.isPremium),
+        isPremium: isPrem,
+        isVip: isPrem,
         updatedAt: new Date().toISOString(),
         updatedAtMs: Date.now(),
       });
       unmarkDocDeleted(docId);
+      unmarkDocDeleted(legacyDocId);
       let cached: JourneyModule[] = [];
       try {
         const raw = localStorage.getItem(STORAGE_KEYS.JOURNEY_CACHE);
@@ -1468,7 +1557,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } catch {}
       const updatedOverrides = mergeContentById<JourneyModule>(
         [normalized],
-        cached
+        cached.filter((m) => m.id !== legacyDocId)
       );
       localStorage.setItem(
         STORAGE_KEYS.JOURNEY_CACHE,
@@ -1480,7 +1569,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       setDoc(
         doc(db, 'journey', docId),
-        sanitizeForFirestore({ ...normalized, updatedAt: serverTimestamp() }),
+        prepareForFirestoreWrite({
+          ...normalized,
+          updatedAt: serverTimestamp(),
+        }),
         { merge: true }
       ).catch(() => {});
     },
@@ -1489,15 +1581,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteJourneyItem = useCallback(
     (day: number) => {
-      const docId = `day-${day}`;
+      const docId = `day_${day}`;
+      const legacyDocId = `day-${day}`;
       markDocDeleted(docId);
+      markDocDeleted(legacyDocId);
       let cached: JourneyModule[] = [];
       try {
         const raw = localStorage.getItem(STORAGE_KEYS.JOURNEY_CACHE);
         if (raw) cached = JSON.parse(raw);
       } catch {}
       const nextOverrides = cached.filter(
-        (m) => m.id !== docId && Number(m.day) !== day
+        (m) =>
+          m.id !== docId && m.id !== legacyDocId && Number(m.day) !== day
       );
       localStorage.setItem(
         STORAGE_KEYS.JOURNEY_CACHE,
@@ -1508,6 +1603,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         broadcastContentUpdate('journey', { id: docId, deleted: true });
       });
       deleteDoc(doc(db, 'journey', docId)).catch(() => {});
+      deleteDoc(doc(db, 'journey', legacyDocId)).catch(() => {});
     },
     [buildMergedJourneyList]
   );
@@ -1523,11 +1619,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     pushServerSync('vip_gates', 'set', 'vip_gates', stamped).then(() => {
       broadcastContentUpdate('vip_gates', stamped);
     });
-    setDoc(
-      doc(db, 'settings', 'vip_gates'),
-      sanitizeForFirestore({ ...stamped, updatedAt: serverTimestamp() }),
-      { merge: true }
-    ).catch(() => {});
+    // Write only boolean section keys + updatedAt to Firestore so the other app version's Object.values(gates).filter(Boolean).length is exact
+    const firestoreGates: Record<string, any> = {
+      updatedAt: serverTimestamp(),
+    };
+    const gateKeys: (keyof VipSectionGates)[] = [
+      'journey',
+      'archives',
+      'library',
+      'forum',
+      'crucible',
+      'blueprint',
+      'shop',
+      'leaderboard',
+      'affiliate',
+    ];
+    for (const k of gateKeys) {
+      if (typeof nextGates[k] === 'boolean') {
+        firestoreGates[k] = nextGates[k];
+      }
+    }
+    setDoc(doc(db, 'settings', 'vip_gates'), firestoreGates, {
+      merge: true,
+    }).catch(() => {});
   }, []);
 
   // Rank & Metrics

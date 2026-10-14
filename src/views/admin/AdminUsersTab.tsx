@@ -82,6 +82,8 @@ export const AdminUsersTab: React.FC = () => {
       u.displayName?.toLowerCase().includes(q) ||
       u.email?.toLowerCase().includes(q) ||
       u.uid?.toLowerCase().includes(q) ||
+      (u.premiumRequestTransactionId &&
+        u.premiumRequestTransactionId.toLowerCase().includes(q)) ||
       (u.utrNumber && u.utrNumber.toLowerCase().includes(q)) ||
       (u.premiumPaymentId && u.premiumPaymentId.toLowerCase().includes(q))
     );
@@ -151,11 +153,11 @@ export const AdminUsersTab: React.FC = () => {
       ...u,
       uid: u.uid,
       isStrategist: false,
-      premiumRequestStatus: 'rejected',
+      premiumRequestStatus: 'denied',
     });
     showToast({
-      title: t('VIP अनुरोध अस्वीकृत', 'VIP Request Rejected'),
-      message: `Request for ${u.displayName} marked as rejected.`,
+      title: t('VIP अनुरोध अस्वीकृत', 'VIP Request Declined'),
+      message: `Request for ${u.displayName} marked as denied.`,
       type: 'info',
     });
   };
@@ -300,9 +302,14 @@ export const AdminUsersTab: React.FC = () => {
                   <div className="text-xs text-zinc-400 font-mono truncate">
                     {u.email}
                   </div>
-                  {(u.utrNumber || u.premiumPaymentId) && (
+                  {(u.premiumRequestTransactionId ||
+                    u.utrNumber ||
+                    u.premiumPaymentId) && (
                     <div className="text-xs font-mono text-amber-400 mt-1 font-bold">
-                      UTR / Ref: {u.utrNumber || u.premiumPaymentId}
+                      UTR / Ref:{' '}
+                      {u.premiumRequestTransactionId ||
+                        u.utrNumber ||
+                        u.premiumPaymentId}
                     </div>
                   )}
                 </div>

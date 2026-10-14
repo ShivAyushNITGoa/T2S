@@ -49,8 +49,12 @@ export const AscensionModal: React.FC = () => {
           user.displayName || profile?.displayName || 'Sovereign Practitioner',
         photoURL: user.photoURL || profile?.photoURL || '',
         premiumRequestStatus: 'pending',
+        premiumRequestPlan: 'sovereign',
+        premiumRequestDetails: 'UPI Payment (Rs. 299 - First 100 Days)',
+        premiumRequestTransactionId: cleanUtr,
         premiumPaymentId: cleanUtr,
         utrNumber: cleanUtr,
+        premiumRequestDate: new Date().toISOString(),
         premiumRequestedAt: new Date().toISOString(),
       });
       setUtrNumber('');

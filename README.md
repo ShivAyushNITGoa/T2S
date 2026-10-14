@@ -1,79 +1,133 @@
-# Talk2Society (T2S) — Clean Modular Sovereign Ecosystem
+# Talk2Society (T2S) — Sovereign Community & 100-Day Transformation Platform
 
-A ground-up, cleanly architected TypeScript + React + Firebase Firestore platform for **Talk2Society (T2S)** by **A. K. Chandradipti**, replacing the original monolithic 17,000+ line codebase with a clean, modular, real-time PWA architecture ready for **Vercel** and **Firebase**.
-
----
-
-## 🚀 Deploy on Vercel & Connect Firebase (Step-by-Step Guide)
-
-### Step 1: Connect Your Firebase Project
-1. Go to the [Firebase Console](https://console.firebase.google.com/) and create or select your Firebase project.
-2. **Enable Authentication (Google Sign-In)**:
-   - Navigate to **Build → Authentication → Sign-in method**.
-   - Enable **Google** as a Sign-in provider and save.
-3. **Create Cloud Firestore Database**:
-   - Navigate to **Build → Firestore Database** and click **Create database** (in Production mode).
-   - Copy the rules from `firestore.rules` into the **Firestore → Rules** tab and click **Publish** (or run `firebase deploy --only firestore:rules`).
-4. **Get Your Firebase Web App Config**:
-   - Navigate to **Project Settings (⚙️) → General → Your apps → Web App (`</>`)**.
-   - You can connect Firebase in either of two ways (both are supported automatically by `src/config/firebase.ts`):
-     - **Option A (Recommended for Vercel)**: Add the environment variables from `.env.example` in **Vercel Dashboard → Project Settings → Environment Variables**:
-       - `VITE_FIREBASE_API_KEY`
-       - `VITE_FIREBASE_AUTH_DOMAIN`
-       - `VITE_FIREBASE_PROJECT_ID`
-       - `VITE_FIREBASE_STORAGE_BUCKET`
-       - `VITE_FIREBASE_MESSAGING_SENDER_ID`
-       - `VITE_FIREBASE_APP_ID`
-       - `VITE_FIREBASE_MEASUREMENT_ID`
-       - `VITE_FIRESTORE_DATABASE_ID` (optional, defaults to `(default)`)
-     - **Option B**: Paste your Firebase keys directly into `firebase-applet-config.json`.
-
-### Step 2: Deploy to Vercel
-1. Push this repository to GitHub / GitLab / Bitbucket (or use the Vercel CLI: `npx vercel --prod`).
-2. Import the repository in [Vercel](https://vercel.com/new):
-   - **Framework Preset**: `Vite` (auto-detected via `vercel.json`)
-   - **Build Command**: `npm run build`
-   - **Output Directory**: `dist`
-3. Click **Deploy**.
-4. **Authorize Your Vercel Domain in Firebase Auth**:
-   - Once deployed, copy your Vercel domain (e.g., `your-app.vercel.app` or custom domain).
-   - Go to **Firebase Console → Authentication → Settings → Authorized domains** and click **Add domain** to add your Vercel URL so Google Sign-In popups/redirects work in production.
+**Talk2Society (T2S)** is a full-stack, bilingual (**हिंदी & English**), Progressive Web Application (PWA) built for the **Talk2Society Community** to guide members through a structured **100-Day Self-Mastery & Strategic Transformation Journey**, interactive life-blueprint frameworks, curated video archives, digital manuscripts, wisdom journaling, and community collaboration.
 
 ---
 
-## ✨ Key Architectural Highlights
+## 👨‍💻 Developer & Author
 
-1. **Full Bilingual Support (हिंदी `hi` & English `en`)**:
-   - Dedicated `LanguageContext` (`src/context/LanguageContext.tsx`) and `<LanguageToggle />` (`src/components/common/LanguageToggle.tsx`) accessible from the **Gateway Header**, **Main Header**, and **Sidebar**.
-   - Persists language selection in `localStorage` (`t2s_language`) and dynamically switches UI labels, titles, descriptions, navigation items, and modals between Hindi and English.
-
-2. **Responsive Mobile & Desktop Navigation + Installable PWA**:
-   - **Mobile (`< 1024px`)**: Fixed 7-button bottom navigation bar (`MobileBottomNav.tsx`), slide-out sidebar drawer (`Sidebar.tsx`), visible `← Back` buttons across Header, Sidebar, Bottom Bar, and Modals, plus Android/iOS hardware back gesture integration (`navHistory`).
-   - **Desktop (`>= 1024px`)**: Sticky collapsible/expandable left sidebar (`Sidebar.tsx`) with `← Back` navigation in both Header and Sidebar.
-   - **PWA Ready**: Includes `public/manifest.json`, `public/sw.js`, `src/utils/pwaInstall.ts`, and `vercel.json` headers for one-click installation on Android, iOS, Windows, macOS, and Linux.
-
-3. **In-App Protected Media & Manuscript Readers (Zero External Redirects or Downloads)**:
-   - All videos (`VideoDossierModal.tsx`, `JourneyModals.tsx`) and library books/PDFs (`BookReaderModal.tsx`, `BuiltInBookReader.tsx`) open strictly inside the app modal with download controls disabled (`controlsList="nodownload"`, `#toolbar=0&navpanes=0`, disabled context menus, and pop-out shields).
-
-4. **Real-Time User & Admin Persistence on Firestore**:
-   - **100-Day Journey (`src/data/journeyData.ts`)**: All 100 days intact, with real-time cloud sync for `completedDays`, `presenceDays`, `dailyReflections`, `xp`, `level`, and `streak`.
-   - **Clean Zero-Demo Catalogs**: Video Archive, Library, and Shop start completely free of demo mode clutter and sync live with Firestore.
-   - **Restricted Admin Command Center (`src/views/admin/`)**: Visible strictly to the designated administrator account, featuring full **Add, Edit, and Delete** across **100-Day Journey**, **Video Archives (with local device thumbnail upload)**, **Great Library (with local cover upload, in-app PDF links & interactive chapter editor)**, **Strategic Shop (with local image upload)**, **Community Forum**, and **Practitioner Directory**.
+- **Developed by**: **Ayush Kumar**
+- **Academic Profile**: B.Tech in **Electrical and Electronics Engineering (EEE)** — **3rd Year, 5th Semester**
+- **Institution**: **National Institute of Technology (NIT) Goa**
+- **Platform & Community**: **Talk2Society (T2S)** (*A. K. Chandradipti*)
 
 ---
 
-## 💻 Local Development Commands
+## 🛠️ Technology Stack
+
+| Layer | Technologies Used |
+| :--- | :--- |
+| **Frontend Framework** | React 19, TypeScript 5.8, Vite 6 |
+| **Styling & Motion** | Tailwind CSS v4 (`@tailwindcss/vite`), Motion (`framer-motion`), Lucide Icons |
+| **Authentication** | Firebase Authentication (Google Sign-In OAuth 2.0) |
+| **Database & Real-Time Sync** | Cloud Firestore (`onSnapshot` real-time listeners, server timestamps, multi-tab synchronization) |
+| **Progressive Web App (PWA)** | Web App Manifest (`manifest.json`), Service Worker (`sw.js`), Install Prompt API (Mobile & Desktop) |
+| **Client-Side Document Engine** | HTML5 Canvas High-DPI Certificate Generator (PNG) & Native Multi-Page PDF 1.4 Generator (Wisdom Diary Export) |
+| **Deployment & Hosting** | Vercel (Edge/Serverless configuration via `vercel.json`) & Firebase Security Rules (`firestore.rules`) |
+
+---
+
+## 📊 Data Architecture & Firestore Collections
+
+The platform uses a real-time **Cloud Firestore** database synchronized with client state to ensure instant updates across devices and persistent progress across sessions:
+
+| Collection / Document | Purpose & Data Model |
+| :--- | :--- |
+| **`users/{uid}`** | Stores member profile (`displayName`, `email`, `photoURL`), 100-Day progress (`completedDays`, `presenceDays`, `streak`, `lastCompletedAt`), gamification metrics (`xp`, `level`), Wisdom Log entries (`dailyReflections`), referral metrics, and Sovereign VIP pass status (`isStrategist`, `premiumRequestStatus`, `premiumRequestTransactionId`). |
+| **`journey/day_{1..100}`** | Stores the 100-Day curriculum modules (`day`, `title`, `hindiTitle`, `lesson`, `task`, `category`, `videoUrl`, `youtubeEmbedId`, `isVip`) merged with the core 100-Day curriculum dataset (`src/data/journeyData.ts`). |
+| **`archives/{videoId}`** | Curated community video dossiers with YouTube Embed ID support, custom local device thumbnails, categories, durations, and VIP access flags. |
+| **`library/{bookId}`** | Digital manuscripts and books with custom cover artwork, structured multi-chapter readers, and protected in-app PDF streams (`order`, `chapters`, `pdfUrl`, `isVip`). |
+| **`shop/{productId}`** | Strategic community resources and recommended tools (`name`, `price`, `category`, `platform`, `affiliateUrl`, `imageUrl`, `description`). |
+| **`forum_posts/{postId}`** | Community Forum discussions, member insights, likes (`likedBy`), and nested replies (`replies`). |
+| **`announcements/{id}`** | Real-time global broadcast banners pushed across all active community sessions. |
+| **`settings/vip_gates`** | Dynamic section-level access configuration managed from the Admin Command Center. |
+
+---
+
+## ✨ Core Platform Features
+
+1. **Bilingual Experience (हिंदी `hi` & English `en`)**
+   - Instant language toggle across the entire platform—covering navigation, the 100-Day Journey, Blueprint guides, modals, certificates, and administrative tools.
+
+2. **100-Day Transformation Journey (`src/views/JourneyView.tsx`)**
+   - 100 structured daily lessons and actionable tasks across core life pillars (*Mental Clarity, Financial Strategy, Emotional Mastery, Physical Discipline, and Social Leadership*).
+   - Enforces disciplined daily progression (one Journey day completion per calendar day) while keeping unreached future days locked.
+   - Cloud-persisted XP, levels, daily streak tracking, and 30-day presence calendar.
+
+3. **Simplified 5-Step Life Blueprint (`src/views/BlueprintView.tsx`)**
+   - Beginner-friendly, bilingual interactive visual guide featuring:
+     - **5 Simple Life Rules** (Mental Peace, Career & Money, Relationships, Health & Energy, Daily Routine)
+     - **Interactive 3D Life Balance Visualizer** (`StickFigureVisualizer.tsx`)
+     - **4 Life Stages Roadmap** (Age 15–22, 22–28, 28–35, 35+)
+     - **Daily 24-Hour Practical Routine**
+     - **5 Quick Self-Check Questions**
+
+4. **Protected In-App Video Archives & Great Library (`src/views/ArchivesView.tsx`, `src/views/LibraryView.tsx`)**
+   - **Video Dossier Modal**: Plays community sessions directly inside the app via YouTube Embed ID or direct stream without external redirects.
+   - **In-App Manuscript & PDF Reader**: Reads multi-chapter books and PDFs strictly inside the app with dedicated full-screen mode and download protection.
+
+5. **Wisdom Log & Multi-Page PDF Diary Export (`src/components/modals/ReflectionsJournalModal.tsx`)**
+   - Members record daily reflections with voice-to-text dictation support and can export their complete personal diary as a formatted, multi-page A4 PDF document.
+
+6. **Sovereign Milestone Certificates (`src/components/modals/SovereignCertificateModal.tsx`)**
+   - Milestone certificates unlock progressively upon completing **Day 7**, **Day 21**, **Day 50**, and **Day 100**, generating a single high-resolution PNG certificate for mobile and desktop download.
+
+7. **Responsive Mobile & Desktop PWA**
+   - **Mobile**: Bottom navigation bar, slide-out navigation drawer, and hardware/in-app back navigation.
+   - **Desktop**: Collapsible sidebar navigation with header breadcrumb controls and one-click PWA installation.
+
+8. **Admin Command Center (`src/views/admin/`)**
+   - Role-restricted management console for real-time curriculum editing, video archive publishing (with local thumbnail upload & YouTube Embed ID), library management, shop administration, broadcast announcements, and Sovereign VIP Pass (₹299 for the first 100 days) verification.
+
+---
+
+## 📁 Project Structure
+
+```text
+├── public/                  # PWA manifest, Service Worker, and Talk2Society brand assets
+├── src/
+│   ├── components/
+│   │   ├── common/          # Reusable UI primitives, Logo, LanguageToggle, PresenceCalendar
+│   │   ├── layout/          # Sidebar, Header, MobileBottomNav, BroadcastBanner, Notifications
+│   │   └── modals/          # VideoDossier, BookReader, Certificate, WisdomLog, Ascension modals
+│   ├── config/              # Firebase initialization & application constants
+│   ├── context/             # AppContext (Firestore real-time state) & LanguageContext (HI/EN)
+│   ├── data/                # 100-Day Journey dataset, Blueprint frameworks, and T2S metadata
+│   ├── types/               # TypeScript interfaces for all domain models
+│   ├── utils/               # Firestore sync helpers, media parsers, date utilities, PWA installer
+│   └── views/               # Core application views, Blueprint visualizers, and Admin tabs
+├── firestore.rules          # Cloud Firestore security rules
+├── firebase.json            # Firebase configuration
+├── vercel.json              # Vercel build, routing, and security header configuration
+└── package.json             # Project dependencies and scripts
+```
+
+---
+
+## 💻 Local Development
 
 ```bash
-# Install dependencies
+# 1. Install dependencies
 npm install
 
-# Start development server (http://localhost:3000)
+# 2. Start the development server (http://localhost:3000)
 npm run dev
 
-# Type-check with TypeScript
+# 3. Run TypeScript type checking
 npm run lint
 
-# Build production bundle for Vercel / Firebase Hosting
+# 4. Build for production
 npm run build
 ```
+
+---
+
+## 🚀 Deployment (Vercel & Firebase)
+
+1. **Firebase Setup**:
+   - Enable **Google Sign-In** under **Firebase Console → Authentication → Sign-in method**.
+   - Create a **Cloud Firestore** database and publish the rules in `firestore.rules`.
+   - Configure your Firebase credentials via environment variables (`.env.example`) or `firebase-applet-config.json`.
+2. **Vercel Deployment**:
+   - Import the repository into [Vercel](https://vercel.com/new) (Framework Preset: **Vite**, Build Command: `npm run build`, Output Directory: `dist`).
+   - Add your deployed Vercel domain under **Firebase Console → Authentication → Settings → Authorized domains**.

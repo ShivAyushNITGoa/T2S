@@ -259,11 +259,12 @@ export const AdminOverviewTab: React.FC = () => {
     setBusyAction('seed');
     try {
       for (const mod of RAW_JOURNEY_MODULES) {
+        const docId = `day_${mod.day}`;
         await setDoc(
-          doc(db, 'journey', `day-${mod.day}`),
+          doc(db, 'journey', docId),
           {
             ...mod,
-            id: `day-${mod.day}`,
+            id: docId,
             category: mod.category || getCategoryForDay(mod.day),
             updatedAt: serverTimestamp(),
           },

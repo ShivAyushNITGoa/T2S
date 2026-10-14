@@ -19,6 +19,8 @@ import { ShopProduct } from '../types';
 import { isDemoShopItem } from '../utils/mediaUtils';
 import {
   mergeContentById,
+  markDocDeleted,
+  pushServerSync,
   fetchServerSync,
   subscribeContentBroadcast,
 } from '../utils/contentSync';
@@ -79,6 +81,12 @@ export const ShopView: React.FC = () => {
     const unsubSnap = onSnapshot(
       collection(db, 'shop'),
       (snap) => {
+        snap.docChanges().forEach((change) => {
+          if (change.type === 'removed') {
+            markDocDeleted(change.doc.id);
+            pushServerSync('shop', 'delete', change.doc.id);
+          }
+        });
         const firestoreData = snap.docs
           .map((d) => ({ id: d.id, ...d.data() } as ShopProduct))
           .filter((p) => !isDemoShopItem(p));
@@ -87,9 +95,16 @@ export const ShopView: React.FC = () => {
           const raw = localStorage.getItem(STORAGE_KEYS.SHOP_CACHE);
           if (raw) cached = JSON.parse(raw);
         } catch {}
+        const filteredCached = !snap.metadata.fromCache
+          ? cached.filter(
+              (c) =>
+                firestoreData.some((f) => f.id === c.id) ||
+                Date.now() - (c.updatedAtMs || 0) < 12000
+            )
+          : cached;
         const merged = mergeContentById<ShopProduct>(
           firestoreData,
-          cached,
+          filteredCached,
           (p) => !isDemoShopItem(p)
         );
         setProducts(merged);

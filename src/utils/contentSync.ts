@@ -5,6 +5,17 @@ const USERS_REGISTRY_KEY = 't2s_users_registry_v1';
 const SYNC_CHANNEL_NAME = 't2s_content_sync_channel';
 const TAB_SESSION_ID = `tab_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
+const TIMESTAMP_FIELD_NAMES = new Set([
+  'createdAt',
+  'updatedAt',
+  'lastLoginAt',
+  'lastCompletedAt',
+  'assignedAt',
+  'premiumRequestDate',
+  'premiumRequestedAt',
+  'journeyResetAt',
+]);
+
 export function sanitizeForFirestore<T>(input: T): T {
   if (input === null || input === undefined || typeof input !== 'object') {
     return input;
@@ -12,10 +23,11 @@ export function sanitizeForFirestore<T>(input: T): T {
   if (input instanceof Date) {
     return input;
   }
-  // Preserve Firestore FieldValue sentinels (serverTimestamp, arrayUnion, increment)
+  // Preserve Firestore FieldValue sentinels (serverTimestamp, arrayUnion, increment) and Timestamp instances
   if (
     typeof (input as any)._methodName === 'string' ||
-    typeof (input as any).isEqual === 'function'
+    typeof (input as any).isEqual === 'function' ||
+    typeof (input as any).toDate === 'function'
   ) {
     return input;
   }
@@ -33,14 +45,74 @@ export function sanitizeForFirestore<T>(input: T): T {
   return result as T;
 }
 
-export function getItemTimestampMs(item: any): number {
-  if (!item) return 0;
-  if (typeof item.updatedAtMs === 'number' && !isNaN(item.updatedAtMs)) {
-    return item.updatedAtMs;
+/**
+ * Prepares an object for writing to Firestore so that it is 100% compatible
+ * with both versions of the Talk2Society app sharing the same Firestore database.
+ * Converts JSON-serialized Timestamp maps ({ seconds, nanoseconds }) and ISO strings
+ * on timestamp fields into native JS Date objects (which Firestore stores as native Timestamps
+ * supporting .toDate(), .toMillis(), and orderBy('createdAt', 'desc')).
+ */
+export function prepareForFirestoreWrite<T>(input: T, parentKey?: string): T {
+  if (input === null || input === undefined) {
+    return input;
   }
-  const u = item.updatedAt;
+  if (typeof input !== 'object') {
+    if (
+      parentKey &&
+      TIMESTAMP_FIELD_NAMES.has(parentKey) &&
+      typeof input === 'string'
+    ) {
+      const parsed = Date.parse(input);
+      if (!isNaN(parsed) && parsed > 0) {
+        return new Date(parsed) as unknown as T;
+      }
+    }
+    return input;
+  }
+  if (input instanceof Date) {
+    return input;
+  }
+  // Preserve Firestore FieldValue sentinels and live Timestamp instances
+  if (
+    typeof (input as any)._methodName === 'string' ||
+    typeof (input as any).isEqual === 'function' ||
+    typeof (input as any).toDate === 'function'
+  ) {
+    return input;
+  }
+  // Convert JSON-serialized Firestore Timestamp { seconds, nanoseconds } back to Date
+  const maybeSec =
+    typeof (input as any).seconds === 'number'
+      ? (input as any).seconds
+      : typeof (input as any)._seconds === 'number'
+        ? (input as any)._seconds
+        : null;
+  if (
+    maybeSec !== null &&
+    Object.keys(input as object).length <= 2 &&
+    ('seconds' in (input as object) || '_seconds' in (input as object))
+  ) {
+    return new Date(maybeSec * 1000) as unknown as T;
+  }
+
+  if (Array.isArray(input)) {
+    return input
+      .filter((v) => v !== undefined)
+      .map((v) => prepareForFirestoreWrite(v)) as unknown as T;
+  }
+
+  const result: Record<string, any> = {};
+  for (const [key, val] of Object.entries(input as Record<string, any>)) {
+    if (val !== undefined) {
+      result[key] = prepareForFirestoreWrite(val, key);
+    }
+  }
+  return result as T;
+}
+
+function parseAnyTimestampMs(u: any): number {
   if (!u) return 0;
-  if (typeof u === 'number') return u;
+  if (typeof u === 'number' && !isNaN(u)) return u;
   if (typeof u === 'string') {
     const parsed = Date.parse(u);
     return isNaN(parsed) ? 0 : parsed;
@@ -51,7 +123,24 @@ export function getItemTimestampMs(item: any): number {
   if (typeof u?.seconds === 'number') {
     return u.seconds * 1000;
   }
+  if (typeof u?._seconds === 'number') {
+    return u._seconds * 1000;
+  }
+  if (u instanceof Date) {
+    return u.getTime();
+  }
   return 0;
+}
+
+export function getItemTimestampMs(item: any): number {
+  if (!item) return 0;
+  const fromMsField =
+    typeof item.updatedAtMs === 'number' && !isNaN(item.updatedAtMs)
+      ? item.updatedAtMs
+      : 0;
+  const fromUpdatedAt = parseAnyTimestampMs(item.updatedAt);
+  const fromCreatedAt = parseAnyTimestampMs(item.createdAt);
+  return Math.max(fromMsField, fromUpdatedAt, fromCreatedAt);
 }
 
 export function getDeletedDocIds(): Set<string> {
@@ -93,44 +182,79 @@ export function mergeContentById<T extends { id: string }>(
   const deletedIds = getDeletedDocIds();
   const map = new Map<string, T>();
 
-  for (const item of secondaryList) {
-    if (!item || !item.id || deletedIds.has(item.id)) continue;
-    if (filterFn && !filterFn(item)) continue;
-    map.set(item.id, item);
-  }
+  const putItem = (item: T, isPrimary: boolean) => {
+    if (!item || !item.id || deletedIds.has(item.id)) return;
+    if (filterFn && !filterFn(item)) return;
 
-  for (const item of primaryList) {
-    if (!item || !item.id || deletedIds.has(item.id)) continue;
-    if (filterFn && !filterFn(item)) continue;
+    // Normalize isPremium / isVip so changes from either app version stay in sync
+    const raw = item as any;
+    const normalizedItem = { ...item } as any;
+    if (typeof raw.isPremium === 'boolean') {
+      normalizedItem.isPremium = raw.isPremium;
+      normalizedItem.isVip = raw.isPremium;
+    } else if (typeof raw.isVip === 'boolean') {
+      normalizedItem.isPremium = raw.isVip;
+      normalizedItem.isVip = raw.isVip;
+    }
+
     const existing = map.get(item.id);
     if (!existing) {
-      map.set(item.id, item);
-    } else {
-      const existingTs = getItemTimestampMs(existing);
-      const incomingTs = getItemTimestampMs(item);
-      // If existing has a strictly newer timestamp, keep existing's newer fields on top
-      if (existingTs > 0 && incomingTs > 0 && existingTs > incomingTs) {
-        map.set(item.id, { ...item, ...existing });
-      } else if (existingTs > 0 && incomingTs === 0) {
-        map.set(item.id, { ...item, ...existing });
-      } else {
-        map.set(item.id, { ...existing, ...item });
-      }
+      map.set(item.id, normalizedItem as T);
+      return;
     }
+
+    const existingTs = getItemTimestampMs(existing);
+    const incomingTs = getItemTimestampMs(normalizedItem);
+
+    if (incomingTs > existingTs) {
+      map.set(item.id, { ...existing, ...normalizedItem } as T);
+    } else if (existingTs > incomingTs) {
+      map.set(item.id, { ...normalizedItem, ...existing } as T);
+    } else if (isPrimary) {
+      map.set(item.id, { ...existing, ...normalizedItem } as T);
+    }
+  };
+
+  for (const item of secondaryList) {
+    putItem(item, false);
+  }
+  for (const item of primaryList) {
+    putItem(item, true);
   }
 
   return Array.from(map.values());
 }
 
-export function normalizeCompletedDays(days: any): number[] {
+export function normalizeCompletedDays(days: unknown): number[] {
   if (!Array.isArray(days)) return [];
   return Array.from(
     new Set(
       days
-        .map(Number)
-        .filter((n: number) => !isNaN(n) && n >= 1 && n <= 100)
+        .map((n) => Number(n))
+        .filter((n) => !isNaN(n) && n >= 1 && n <= 100)
     )
   ).sort((a, b) => a - b);
+}
+
+function extractDailyReflections(obj: Record<string, any>): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (obj?.dailyReflections && typeof obj.dailyReflections === 'object') {
+    for (const [k, v] of Object.entries(obj.dailyReflections)) {
+      if (typeof v === 'string' && v.trim()) {
+        out[k] = v;
+      }
+    }
+  }
+  // Also recover top-level "dailyReflections.YYYY-MM-DD" fields written by the other app version's setDoc
+  if (obj && typeof obj === 'object') {
+    for (const [k, v] of Object.entries(obj)) {
+      if (k.startsWith('dailyReflections.') && typeof v === 'string' && v.trim()) {
+        const dateKey = k.slice('dailyReflections.'.length);
+        if (dateKey) out[dateKey] = v;
+      }
+    }
+  }
+  return out;
 }
 
 export function mergeSingleUserProfile(
@@ -150,11 +274,20 @@ export function mergeSingleUserProfile(
   const aDays = normalizeCompletedDays(a.completedDays);
   const bDays = normalizeCompletedDays(b.completedDays);
 
+  // Detect if the other app version performed an explicit Admin Reset in Firestore
+  const isNewerExplicitReset =
+    bTs > aTs &&
+    Array.isArray(b.completedDays) &&
+    b.completedDays.length === 0 &&
+    b.xp === 0 &&
+    b.lastCompletedAt === null;
+
+  const effectiveForceReplace = forceReplaceDays || isNewerExplicitReset;
+
   let mergedDays: number[];
-  if (forceReplaceDays) {
+  if (effectiveForceReplace) {
     mergedDays = bDays;
   } else if (latestResetTs > 0) {
-    // If an admin explicitly reset the journey recently, prefer the record with the newer reset timestamp
     if (bResetTs >= aResetTs && bTs >= aResetTs) {
       mergedDays = bDays;
     } else if (aResetTs > bResetTs && aTs >= bTs) {
@@ -166,12 +299,13 @@ export function mergeSingleUserProfile(
     mergedDays = Array.from(new Set([...aDays, ...bDays])).sort((x, y) => x - y);
   }
 
-  const base = aTs > bTs && !forceReplaceDays ? { ...b, ...a } : { ...a, ...b };
+  const base =
+    aTs > bTs && !effectiveForceReplace ? { ...b, ...a } : { ...a, ...b };
 
   const aXp = typeof a.xp === 'number' ? a.xp : 0;
   const bXp = typeof b.xp === 'number' ? b.xp : 0;
   const resolvedXp =
-    forceReplaceDays || (bTs > aTs && b.xp !== undefined)
+    effectiveForceReplace || (bTs > aTs && b.xp !== undefined)
       ? bXp
       : Math.max(aXp, bXp, mergedDays.length * 100);
   const resolvedLevel = Math.floor(resolvedXp / 1000) + 1;
@@ -183,10 +317,21 @@ export function mergeSingleUserProfile(
     ])
   );
 
-  const mergedReflections = {
-    ...(a.dailyReflections || {}),
-    ...(b.dailyReflections || {}),
-  };
+  const mergedReflections = effectiveForceReplace
+    ? extractDailyReflections(b)
+    : {
+        ...extractDailyReflections(a),
+        ...extractDailyReflections(b),
+      };
+
+  const resolvedTxnId =
+    b.premiumRequestTransactionId ||
+    b.premiumPaymentId ||
+    b.utrNumber ||
+    a.premiumRequestTransactionId ||
+    a.premiumPaymentId ||
+    a.utrNumber ||
+    '';
 
   return {
     ...base,
@@ -201,7 +346,7 @@ export function mergeSingleUserProfile(
     xp: resolvedXp,
     level: resolvedLevel,
     streak:
-      forceReplaceDays && b.streak !== undefined
+      effectiveForceReplace && b.streak !== undefined
         ? b.streak
         : Math.max(Number(a.streak) || 0, Number(b.streak) || 0, 1),
     isStrategist:
@@ -212,13 +357,16 @@ export function mergeSingleUserProfile(
       bTs >= aTs && b.premiumRequestStatus !== undefined
         ? b.premiumRequestStatus
         : a.premiumRequestStatus || b.premiumRequestStatus || 'none',
-    premiumPaymentId:
-      b.premiumPaymentId || a.premiumPaymentId || b.utrNumber || a.utrNumber || '',
-    utrNumber:
-      b.utrNumber || a.utrNumber || b.premiumPaymentId || a.premiumPaymentId || '',
-    lastCompletedAt: b.lastCompletedAt || a.lastCompletedAt || null,
-    lastCompletedDate: b.lastCompletedDate || a.lastCompletedDate || undefined,
-    updatedAtMs: Math.max(aTs, bTs, Date.now()),
+    premiumRequestTransactionId: resolvedTxnId,
+    premiumPaymentId: resolvedTxnId,
+    utrNumber: resolvedTxnId,
+    lastCompletedAt: effectiveForceReplace
+      ? b.lastCompletedAt ?? null
+      : b.lastCompletedAt || a.lastCompletedAt || null,
+    lastCompletedDate: effectiveForceReplace
+      ? b.lastCompletedDate || undefined
+      : b.lastCompletedDate || a.lastCompletedDate || undefined,
+    updatedAtMs: Math.max(aTs, bTs),
   } as UserProfile;
 }
 

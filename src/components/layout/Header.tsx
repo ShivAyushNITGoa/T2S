@@ -15,8 +15,8 @@ import { usePwaInstall } from '../../utils/pwaInstall';
 
 const TAB_LABELS: Record<string, { hi: string; en: string }> = {
   journey: { hi: '१००-दिवसीय यात्रा', en: '100-Day Journey' },
-  framework: { hi: 'ब्लूप्रिंट व मानसिक मॉडल', en: 'Blueprint & Models' },
-  blueprint: { hi: 'ब्लूप्रिंट व मानसिक मॉडल', en: 'Blueprint & Models' },
+  framework: { hi: 'हमारा दर्शन (सरल गाइड)', en: 'Simple Guide & Philosophy' },
+  blueprint: { hi: 'हमारा दर्शन (सरल गाइड)', en: 'Simple Guide & Philosophy' },
   archives: { hi: 'वृत्तचित्र संग्रह', en: 'Video Archives' },
   library: { hi: 'महान पुस्तकालय', en: 'Great Library' },
   forum: { hi: 'साधक चर्चा मंच', en: 'Community Forum' },

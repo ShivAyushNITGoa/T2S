@@ -40,6 +40,8 @@ import {
   isDemoShopItem,
 } from '../../utils/mediaUtils';
 import {
+  sanitizeForFirestore,
+  prepareForFirestoreWrite,
   mergeContentById,
   markDocDeleted,
   unmarkDocDeleted,
@@ -115,7 +117,7 @@ export const AdminJourneyTab: React.FC = () => {
 
   const saveDayModule = async (e: React.FormEvent) => {
     e.preventDefault();
-    const docId = `day-${editingDay}`;
+    const docId = `day_${editingDay}`;
     const resolvedYtId =
       getYouTubeId(youtubeEmbedId) || getYouTubeId(videoUrl) || '';
     const resolvedVideoUrl = resolvedYtId
@@ -1594,6 +1596,12 @@ export const AdminShopTab: React.FC = () => {
     const unsubSnap = onSnapshot(
       collection(db, 'shop'),
       (snap) => {
+        snap.docChanges().forEach((change) => {
+          if (change.type === 'removed') {
+            markDocDeleted(change.doc.id);
+            pushServerSync('shop', 'delete', change.doc.id);
+          }
+        });
         const firestoreProducts = snap.docs
           .map((d) => ({ id: d.id, ...d.data() } as ShopProduct))
           .filter((p) => !isDemoShopItem(p));
@@ -1602,9 +1610,16 @@ export const AdminShopTab: React.FC = () => {
           const raw = localStorage.getItem(STORAGE_KEYS.SHOP_CACHE);
           if (raw) cached = JSON.parse(raw);
         } catch {}
+        const filteredCached = !snap.metadata.fromCache
+          ? cached.filter(
+              (c) =>
+                firestoreProducts.some((f) => f.id === c.id) ||
+                Date.now() - (c.updatedAtMs || 0) < 12000
+            )
+          : cached;
         const merged = mergeContentById<ShopProduct>(
           firestoreProducts,
-          cached,
+          filteredCached,
           (p) => !isDemoShopItem(p)
         );
         setProducts(merged);
@@ -1689,21 +1704,36 @@ export const AdminShopTab: React.FC = () => {
   };
 
   const upsertShopProduct = (item: ShopProduct) => {
-    unmarkDocDeleted(item.id);
+    const nowIso = new Date().toISOString();
+    const cleanItem = sanitizeForFirestore({
+      ...item,
+      name: (item.name || 'Strategic Resource').trim(),
+      category: (item.category || 'Resources').trim(),
+      createdAt: item.createdAt || nowIso,
+      updatedAtMs: Date.now(),
+      updatedAt: nowIso,
+    }) as ShopProduct;
+
+    unmarkDocDeleted(cleanItem.id);
     setProducts((prev) => {
       const next = mergeContentById<ShopProduct>(
-        [item],
+        [cleanItem],
         prev,
         (p) => !isDemoShopItem(p)
       );
       localStorage.setItem(STORAGE_KEYS.SHOP_CACHE, JSON.stringify(next));
       return next;
     });
-    pushServerSync('shop', 'set', item.id, item);
-    broadcastContentUpdate('shop', item);
+    pushServerSync('shop', 'set', cleanItem.id, cleanItem).finally(() => {
+      broadcastContentUpdate('shop', cleanItem);
+    });
     setDoc(
-      doc(db, 'shop', item.id),
-      { ...item, updatedAt: serverTimestamp() },
+      doc(db, 'shop', cleanItem.id),
+      prepareForFirestoreWrite({
+        ...cleanItem,
+        createdAt: item.createdAt || serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }),
       { merge: true }
     ).catch(() => {});
   };
@@ -1776,8 +1806,9 @@ export const AdminShopTab: React.FC = () => {
       localStorage.setItem(STORAGE_KEYS.SHOP_CACHE, JSON.stringify(next));
       return next;
     });
-    pushServerSync('shop', 'delete', id);
-    broadcastContentUpdate('shop', { id, deleted: true });
+    pushServerSync('shop', 'delete', id).finally(() => {
+      broadcastContentUpdate('shop', { id, deleted: true });
+    });
     deleteDoc(doc(db, 'shop', id)).catch(() => {});
     if (editingId === id) {
       resetForm();

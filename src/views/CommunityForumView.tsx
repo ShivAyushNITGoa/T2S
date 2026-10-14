@@ -278,7 +278,9 @@ export const CommunityForumView: React.FC = () => {
       id: `rep_${Date.now()}`,
       authorId: user.uid,
       authorName: currentUserProfile.displayName || 'Practitioner',
-      authorPhotoURL: currentUserProfile.photoURL || undefined,
+      ...(currentUserProfile.photoURL
+        ? { authorPhotoURL: currentUserProfile.photoURL }
+        : {}),
       content: replyContent,
       createdAt: new Date().toISOString(),
     };
